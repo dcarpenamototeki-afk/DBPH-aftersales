@@ -12,11 +12,7 @@ export default function InventoryPage() {
           title: moduleConfig.inventory.title,
           apiPath: moduleConfig.inventory.apiPath,
           columns: [...moduleConfig.inventory.columns],
-          filters: [
-            { key: "main_status", label: "Main status", options: ["AVAILABLE", "SOLD"] },
-            { key: "orcr_status", label: "ORCR status", options: ["COMPLETE", "INCOMPLETE", "PENDING"] },
-            { key: "claiming_orcr_status", label: "Claiming status", options: ["RECEIVED", "INCOMPLETE", "TEMPORARY", "WALK IN", "LBC"] }
-          ]
+          filters: []
         }}
       />
     </AppShell>

@@ -8,6 +8,7 @@ import { RecordFormModal } from "./record-form-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { PageHeader } from "./page-header";
 import { ReleaseModal, ReleasePayload } from "./release-modal";
+import { SoldModal, SoldPayload } from "./sold-modal";
 
 type Config<T> = {
   module: ModuleKey;
@@ -30,6 +31,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<Partial<T> | null>(null);
   const [releasing, setReleasing] = useState<T | null>(null);
+  const [selling, setSelling] = useState<T | null>(null);
   const [deleting, setDeleting] = useState<T | null>(null);
   const [error, setError] = useState("");
 
@@ -48,10 +50,12 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
   }, [load]);
 
   const filteredRows = useMemo(() => {
-    return rows.filter((row) =>
-      Object.entries(filters).every(([key, value]) => !value || String(row[key] ?? "").toUpperCase() === value.toUpperCase())
-    );
-  }, [rows, filters]);
+    return rows
+      .filter((row) => config.module !== "inventory" || String(row.main_status ?? "AVAILABLE") !== "SOLD")
+      .filter((row) =>
+        Object.entries(filters).every(([key, value]) => !value || String(row[key] ?? "").toUpperCase() === value.toUpperCase())
+      );
+  }, [rows, filters, config.module]);
 
   async function save() {
     if (!editing) return;
@@ -107,8 +111,21 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
     await load();
   }
 
-  function markSold(row: T) {
-    setEditing({ ...row, main_status: "SOLD" });
+  async function markSold(payload: SoldPayload) {
+    if (!selling) return;
+    const response = await fetch(`${config.apiPath}/${selling.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, main_status: "SOLD" })
+    });
+    if (!response.ok) {
+      const body = await response.json();
+      setError(body.error ?? "Unable to save sold unit.");
+      return;
+    }
+
+    setSelling(null);
+    await load();
   }
 
   return (
@@ -208,7 +225,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
                         </button>
                       ) : null}
                       {config.module === "inventory" ? (
-                        <button title="Mark sold" className="rounded-md p-2 text-emerald-700 hover:bg-emerald-50" onClick={() => markSold(row)}>
+                        <button title="Sold" className="rounded-md p-2 text-emerald-700 hover:bg-emerald-50" onClick={() => setSelling(row)}>
                           <PackageCheck size={16} />
                         </button>
                       ) : null}
@@ -256,6 +273,13 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
           title={String(releasing.registered_name ?? releasing.plate_number ?? "")}
           onClose={() => setReleasing(null)}
           onSubmit={release}
+        />
+      ) : null}
+      {selling ? (
+        <SoldModal
+          title={String(selling.motor_number ?? selling.registered_name ?? "")}
+          onClose={() => setSelling(null)}
+          onSubmit={markSold}
         />
       ) : null}
     </>

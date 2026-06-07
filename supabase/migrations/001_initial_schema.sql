@@ -48,18 +48,20 @@ create table if not exists public.sb_finance_inventory (
   odometer_reading numeric,
   srp numeric,
   costing numeric,
-  new_owner text not null default '',
-  claiming_orcr_status text not null default '',
-  exit_status text not null default '',
-  orcr_status text not null default '',
-  plate_status text not null default '',
   plate_number text not null default '',
+  sold_date date,
+  new_owner text not null default '',
+  sold_orcr_released text not null default '',
+  sold_plate_released text not null default '',
+  sold_sb_finance_documents text not null default '',
+  sold_for_too boolean not null default false,
   main_status text not null default 'AVAILABLE',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint sb_finance_inventory_main_status_check check (main_status in ('AVAILABLE', 'SOLD')),
-  constraint sb_finance_inventory_orcr_status_check check (orcr_status in ('', 'COMPLETE', 'INCOMPLETE', 'PENDING')),
-  constraint sb_finance_inventory_claiming_status_check check (claiming_orcr_status in ('', 'RECEIVED', 'INCOMPLETE', 'TEMPORARY', 'WALK IN', 'LBC'))
+  constraint sb_finance_inventory_sold_orcr_check check (sold_orcr_released in ('', 'CLAIMED', 'TO FOLLOW')),
+  constraint sb_finance_inventory_sold_plate_check check (sold_plate_released in ('', 'CLAIMED', 'TO FOLLOW')),
+  constraint sb_finance_inventory_sold_documents_check check (sold_sb_finance_documents in ('', 'CLAIMED', 'TO FOLLOW'))
 );
 
 create table if not exists public.activity_log (

@@ -26,23 +26,12 @@ export const inventoryColumns: ColumnDef<InventoryRecord>[] = [
   { key: "motor_number", label: "Motor Number", required: true },
   { key: "registered_name", label: "Registered Name" },
   { key: "motorcycle_model", label: "Motorcycle Model" },
-  { key: "color", label: "Color" },
   { key: "year_model", label: "Year Model" },
+  { key: "color", label: "Color" },
+  { key: "plate_number", label: "Plate Number" },
   { key: "odometer_reading", label: "Odometer Reading", type: "number" },
   { key: "srp", label: "SRP", type: "money" },
-  { key: "costing", label: "Costing", type: "money" },
-  { key: "new_owner", label: "New Owner" },
-  {
-    key: "claiming_orcr_status",
-    label: "Claiming ORCR Status",
-    type: "status",
-    options: ["RECEIVED", "INCOMPLETE", "TEMPORARY", "WALK IN", "LBC"]
-  },
-  { key: "exit_status", label: "Exit Status" },
-  { key: "orcr_status", label: "ORCR Status", type: "status", options: ["COMPLETE", "INCOMPLETE", "PENDING"] },
-  { key: "plate_status", label: "Plate Status / Plate Number" },
-  { key: "plate_number", label: "Plate Number" },
-  { key: "main_status", label: "Main Status", type: "status", options: ["AVAILABLE", "SOLD"] }
+  { key: "costing", label: "Costing", type: "money" }
 ];
 
 export const moduleConfig = {
@@ -63,7 +52,7 @@ export const moduleConfig = {
     searchable: ["sales_invoice_number", "registered_name", "motorcycle_unit_type", "engine_number", "chassis_number"]
   },
   inventory: {
-    title: "SB Finance / Small CC Inventory",
+    title: "SB Finance Inventory",
     apiPath: "/api/inventory",
     table: "sb_finance_inventory",
     duplicateKeys: ["motor_number", "plate_number"],

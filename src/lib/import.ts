@@ -39,10 +39,11 @@ const aliases: Record<string, string> = {
   srp: "srp",
   costing: "costing",
   new_owner: "new_owner",
-  claiming_orcr_status: "claiming_orcr_status",
-  exit_status: "exit_status",
-  orcr_status: "orcr_status",
-  plate_status: "plate_status",
+  sold_date: "sold_date",
+  sold_orcr_released: "sold_orcr_released",
+  sold_plate_released: "sold_plate_released",
+  sold_sb_finance_documents: "sold_sb_finance_documents",
+  sold_for_too: "sold_for_too",
   main_status: "main_status"
 };
 
