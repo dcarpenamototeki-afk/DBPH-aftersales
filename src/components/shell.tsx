@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, FileSpreadsheet, Import, Receipt, Warehouse } from "lucide-react";
+import { BarChart3, FileSpreadsheet, Import, PackageCheck, Receipt, Warehouse } from "lucide-react";
 import { clsx } from "clsx";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: BarChart3 },
   { href: "/orcr", label: "ORCR / Plate", icon: FileSpreadsheet },
+  { href: "/released", label: "Released ORCR / Plate", icon: PackageCheck },
   { href: "/sales-invoices", label: "Sales Invoice", icon: Receipt },
   { href: "/inventory", label: "Inventory", icon: Warehouse },
   { href: "/import", label: "Import", icon: Import }

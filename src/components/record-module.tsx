@@ -7,6 +7,7 @@ import { StatusBadge } from "./status-badge";
 import { RecordFormModal } from "./record-form-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { PageHeader } from "./page-header";
+import { ReleaseModal, ReleasePayload } from "./release-modal";
 
 type Config<T> = {
   module: ModuleKey;
@@ -28,6 +29,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<Partial<T> | null>(null);
+  const [releasing, setReleasing] = useState<T | null>(null);
   const [deleting, setDeleting] = useState<T | null>(null);
   const [error, setError] = useState("");
 
@@ -75,13 +77,34 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
     await load();
   }
 
-  function release(row: T) {
-    setEditing({
-      ...row,
-      date_out: new Date().toISOString().slice(0, 10),
-      orcr_on_hand: false,
-      plate_on_hand: false
+  async function release(payload: ReleasePayload) {
+    if (!releasing) return;
+    const update: Record<string, unknown> = {};
+
+    payload.targets.forEach((target) => {
+      update[`${target}_release_date`] = payload.date;
+      update[`${target}_release_method`] = payload.method;
+      update[`${target}_lbc_tracking_number`] = payload.method === "LBC" ? payload.trackingNumber : "";
+      update[`${target}_received_by`] = payload.method === "WALK IN" ? payload.receivedBy : "";
+      if (target === "orcr") update.orcr_on_hand = false;
+      if (target === "plate") update.plate_on_hand = false;
     });
+
+    if (payload.remarks) update.remarks = payload.remarks;
+
+    const response = await fetch(`${config.apiPath}/${releasing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(update)
+    });
+    if (!response.ok) {
+      const body = await response.json();
+      setError(body.error ?? "Unable to save release.");
+      return;
+    }
+
+    setReleasing(null);
+    await load();
   }
 
   function markSold(row: T) {
@@ -180,7 +203,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
                   <td className="sticky right-0 whitespace-nowrap border-b border-line bg-inherit px-3 py-2">
                     <div className="flex gap-1">
                       {config.module === "orcr" ? (
-                        <button title="Release ORCR / Plate" className="rounded-md p-2 text-emerald-700 hover:bg-emerald-50" onClick={() => release(row)}>
+                        <button title="Release ORCR / Plate" className="rounded-md p-2 text-emerald-700 hover:bg-emerald-50" onClick={() => setReleasing(row)}>
                           <PackageCheck size={16} />
                         </button>
                       ) : null}
@@ -226,6 +249,13 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
           message="This will permanently remove the selected record."
           onCancel={() => setDeleting(null)}
           onConfirm={remove}
+        />
+      ) : null}
+      {releasing ? (
+        <ReleaseModal
+          title={String(releasing.registered_name ?? releasing.plate_number ?? "")}
+          onClose={() => setReleasing(null)}
+          onSubmit={release}
         />
       ) : null}
     </>

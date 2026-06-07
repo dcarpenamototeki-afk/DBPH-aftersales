@@ -7,10 +7,16 @@ export type OrcrPlateRecord = {
   chassis_number: string;
   orcr_on_hand: boolean;
   date_in: string | null;
-  date_out: string | null;
-  lbc_tracking_number: string;
   plate_number: string;
   plate_on_hand: boolean;
+  orcr_release_date: string | null;
+  orcr_release_method: "LBC" | "WALK IN" | "";
+  orcr_lbc_tracking_number: string;
+  orcr_received_by: string;
+  plate_release_date: string | null;
+  plate_release_method: "LBC" | "WALK IN" | "";
+  plate_lbc_tracking_number: string;
+  plate_received_by: string;
   remarks: string;
   created_at: string;
   updated_at: string;

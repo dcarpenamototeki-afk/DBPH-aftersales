@@ -9,13 +9,21 @@ create table if not exists public.orcr_plate_records (
   chassis_number text not null default '',
   orcr_on_hand boolean not null default false,
   date_in date,
-  date_out date,
-  lbc_tracking_number text not null default '',
   plate_number text not null default '',
   plate_on_hand boolean not null default false,
+  orcr_release_date date,
+  orcr_release_method text not null default '',
+  orcr_lbc_tracking_number text not null default '',
+  orcr_received_by text not null default '',
+  plate_release_date date,
+  plate_release_method text not null default '',
+  plate_lbc_tracking_number text not null default '',
+  plate_received_by text not null default '',
   remarks text not null default '',
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint orcr_release_method_check check (orcr_release_method in ('', 'LBC', 'WALK IN')),
+  constraint plate_release_method_check check (plate_release_method in ('', 'LBC', 'WALK IN'))
 );
 
 create table if not exists public.sales_invoice_records (

@@ -12,6 +12,15 @@ async function count(table: string, filter?: { column: string; value?: string | 
   return total ?? 0;
 }
 
+async function countReleasedOrcrPlate() {
+  const { count: total, error } = await getSupabaseAdmin()
+    .from("orcr_plate_records")
+    .select("*", { count: "exact", head: true })
+    .or("orcr_release_date.not.is.null,plate_release_date.not.is.null");
+  if (error) throw error;
+  return total ?? 0;
+}
+
 export async function GET() {
   const [
     totalOrcr,
@@ -28,7 +37,7 @@ export async function GET() {
     count("orcr_plate_records", { column: "orcr_on_hand", value: true }),
     count("orcr_plate_records", { column: "plate_on_hand", value: true }),
     count("orcr_plate_records", { column: "orcr_on_hand", value: false }),
-    count("orcr_plate_records", { column: "date_out", notNull: true }),
+    countReleasedOrcrPlate(),
     count("sales_invoice_records"),
     count("sb_finance_inventory"),
     count("sb_finance_inventory", { column: "main_status", value: "AVAILABLE" }),

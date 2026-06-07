@@ -8,8 +8,6 @@ export const orcrColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "chassis_number", label: "Chassis Number" },
   { key: "orcr_on_hand", label: "ORCR on Hand", type: "boolean" },
   { key: "date_in", label: "Date In", type: "date" },
-  { key: "date_out", label: "Date Out", type: "date" },
-  { key: "lbc_tracking_number", label: "LBC Tracking Number" },
   { key: "plate_number", label: "Plate Number" },
   { key: "plate_on_hand", label: "Plate on Hand", type: "boolean" },
   { key: "remarks", label: "Remarks" }
