@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: #edf2f8;
+  color: #172033;
+}
+
+input,
+select,
+textarea {
+  @apply rounded-md border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100;
+}
+
+button {
+  @apply transition;
+}
+
+.table-scroll {
+  scrollbar-width: thin;
+}
