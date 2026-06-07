@@ -51,6 +51,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
 
   const filteredRows = useMemo(() => {
     return rows
+      .filter((row) => config.module !== "orcr" || (!row.orcr_release_date && !row.plate_release_date))
       .filter((row) => config.module !== "inventory" || String(row.main_status ?? "AVAILABLE") !== "SOLD")
       .filter((row) =>
         Object.entries(filters).every(([key, value]) => !value || String(row[key] ?? "").toUpperCase() === value.toUpperCase())

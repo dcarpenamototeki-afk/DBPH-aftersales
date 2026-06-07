@@ -32,6 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="border-b border-line bg-white lg:fixed lg:inset-y-0 lg:w-64 lg:border-b-0 lg:border-r">
         <div className="border-b border-line px-5 py-4">
           <Image src="/dreambike-logo.png" alt="Dreambike PH" width={220} height={56} className="h-12 w-full object-contain object-left" />
+          <p className="mt-2 text-center text-xs font-bold tracking-[0.24em] text-slate-600">MONITORING SYSTEM</p>
         </div>
         <nav className="flex gap-1 overflow-x-auto p-3 lg:block">
           <NavLink href="/" label="Dashboard" icon={BarChart3} />
@@ -42,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <ChevronDown size={15} />
             </summary>
             <div className="mt-1 grid gap-1">
-              <NavLink href="/orcr" label="ORCR / Plate Tracker" icon={FileSpreadsheet} inset />
+              <NavLink href="/orcr" label="ORCR / Plate Monitoring" icon={FileSpreadsheet} inset />
               <NavLink href="/released" label="Released ORCR / Plate" icon={PackageCheck} inset />
             </div>
           </details>
