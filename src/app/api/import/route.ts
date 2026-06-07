@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonError } from "@/lib/api";
+import { jsonError, requireAllowedUser } from "@/lib/api";
 import { googleRowsToObjects, mapImportRow } from "@/lib/import";
 import { moduleConfig } from "@/lib/schema";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -33,6 +33,9 @@ async function fetchSheetValues(range = "A:Z", gid?: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAllowedUser(request);
+  if (auth.error) return auth.error;
+
   const moduleKey = request.nextUrl.searchParams.get("module") as ModuleKey;
   const range = request.nextUrl.searchParams.get("range") ?? "A:Z";
   const gid = request.nextUrl.searchParams.get("gid") ?? undefined;
@@ -48,6 +51,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAllowedUser(request);
+  if (auth.error) return auth.error;
+
   const { module: moduleKey, rows } = (await request.json()) as { module: ModuleKey; rows: Record<string, unknown>[] };
   const config = moduleConfig[moduleKey];
   if (!config) return jsonError("Unknown import module.", 404);

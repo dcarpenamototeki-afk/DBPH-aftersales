@@ -82,6 +82,23 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
     await load();
   }
 
+  async function exportCsv() {
+    const response = await fetch(`/api/export/${config.module}`);
+    if (!response.ok) {
+      const body = await response.json();
+      setError(body.error ?? "Unable to export CSV.");
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${config.module}-export.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function release(payload: ReleasePayload) {
     if (!releasing) return;
     const update: Record<string, unknown> = {};
@@ -133,13 +150,13 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
     <>
       <PageHeader title={config.title}>
         <div className="flex flex-wrap gap-2">
-          <a
+          <button
             className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink"
-            href={`/api/export/${config.module}`}
+            onClick={exportCsv}
           >
             <Download size={16} />
             Export CSV
-          </a>
+          </button>
           <a
             className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink"
             href={`/import?module=${config.module}`}

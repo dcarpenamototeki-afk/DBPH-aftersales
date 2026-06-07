@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { requireAllowedUser } from "@/lib/api";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +23,10 @@ async function countReleasedOrcrPlate() {
   return total ?? 0;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAllowedUser(request);
+  if (auth.error) return auth.error;
+
   const [
     totalOrcr,
     orcrOnHand,

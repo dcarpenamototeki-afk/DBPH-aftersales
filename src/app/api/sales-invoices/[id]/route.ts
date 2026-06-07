@@ -9,5 +9,5 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
-  return deleteRecord(moduleConfig.sales.table, params.id);
+  return deleteRecord(_request, moduleConfig.sales.table, params.id);
 }

@@ -1,10 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import { OrcrPlateRecord } from "@/lib/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FilePenLine, Search, Trash2 } from "lucide-react";
+import { ColumnDef, OrcrPlateRecord } from "@/lib/types";
 import { PageHeader } from "./page-header";
 import { StatusBadge } from "./status-badge";
+import { RecordFormModal } from "./record-form-modal";
+import { ConfirmDialog } from "./confirm-dialog";
+
+const releaseEditColumns: ColumnDef<OrcrPlateRecord>[] = [
+  { key: "registered_name", label: "Registered Name" },
+  { key: "motorcycle_unit_type", label: "Motorcycle / Unit Type" },
+  { key: "plate_number", label: "Plate Number" },
+  { key: "orcr_release_date", label: "ORCR Date Out", type: "date" },
+  { key: "orcr_release_method", label: "ORCR Dropbox", type: "status", options: ["LBC", "WALK IN"] },
+  { key: "orcr_lbc_tracking_number", label: "ORCR Tracking Number" },
+  { key: "orcr_received_by", label: "ORCR Received By" },
+  { key: "plate_release_date", label: "Plate Date Out", type: "date" },
+  { key: "plate_release_method", label: "Plate Dropbox", type: "status", options: ["LBC", "WALK IN"] },
+  { key: "plate_lbc_tracking_number", label: "Plate Tracking Number" },
+  { key: "plate_received_by", label: "Plate Received By" },
+  { key: "remarks", label: "Remarks" }
+];
 
 function releaseLabel(row: OrcrPlateRecord) {
   if (row.orcr_release_date && row.plate_release_date) return "ORCR + PLATE";
@@ -23,9 +40,11 @@ export function ReleasedPage() {
   const [rows, setRows] = useState<OrcrPlateRecord[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("");
+  const [editing, setEditing] = useState<Partial<OrcrPlateRecord> | null>(null);
+  const [deleting, setDeleting] = useState<OrcrPlateRecord | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch("/api/orcr")
       .then((response) => response.json())
       .then((body) => {
@@ -34,6 +53,33 @@ export function ReleasedPage() {
       })
       .catch(() => setError("Unable to load released records."));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function saveEdit() {
+    if (!editing?.id) return;
+    const response = await fetch(`/api/orcr/${editing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editing)
+    });
+    if (!response.ok) {
+      const body = await response.json();
+      setError(body.error ?? "Unable to update released record.");
+      return;
+    }
+    setEditing(null);
+    load();
+  }
+
+  async function deleteRow() {
+    if (!deleting) return;
+    await fetch(`/api/orcr/${deleting.id}`, { method: "DELETE" });
+    setDeleting(null);
+    load();
+  }
 
   const released = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -97,6 +143,7 @@ export function ReleasedPage() {
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Date Out</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Dropbox</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Tracking / Received By</th>
+              <th className="sticky right-0 border-b border-line bg-slate-100 px-3 py-3 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -113,11 +160,21 @@ export function ReleasedPage() {
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_release_date ?? "-"}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_release_method || "-"}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{detail(row.plate_release_method, row.plate_lbc_tracking_number, row.plate_received_by)}</td>
+                  <td className="sticky right-0 whitespace-nowrap border-b border-line bg-inherit px-3 py-2">
+                    <div className="flex gap-1">
+                      <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => setEditing(row)}>
+                        <FilePenLine size={16} />
+                      </button>
+                      <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => setDeleting(row)}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="px-3 py-6 text-slate-500" colSpan={10}>
+                <td className="px-3 py-6 text-slate-500" colSpan={11}>
                   No released ORCR or plate records yet.
                 </td>
               </tr>
@@ -125,6 +182,24 @@ export function ReleasedPage() {
           </tbody>
         </table>
       </div>
+      {editing ? (
+        <RecordFormModal
+          title="Edit Released Record"
+          columns={releaseEditColumns}
+          values={editing}
+          onChange={(key, value) => setEditing((current) => ({ ...(current ?? {}), [key]: value }))}
+          onClose={() => setEditing(null)}
+          onSubmit={saveEdit}
+        />
+      ) : null}
+      {deleting ? (
+        <ConfirmDialog
+          title="Delete released record"
+          message="This will permanently delete the selected ORCR / Plate record."
+          onCancel={() => setDeleting(null)}
+          onConfirm={deleteRow}
+        />
+      ) : null}
     </>
   );
 }
