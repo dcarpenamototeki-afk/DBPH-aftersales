@@ -12,6 +12,8 @@ export type ReleasePayload = {
   method: ReleaseMethod;
   trackingNumber: string;
   receivedBy: string;
+  orcrImageUrl: string;
+  plateImageUrl: string;
   remarks: string;
 };
 
@@ -29,6 +31,8 @@ export function ReleaseModal({
   const [method, setMethod] = useState<ReleaseMethod>("LBC");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState("");
+  const [orcrImageUrl, setOrcrImageUrl] = useState("");
+  const [plateImageUrl, setPlateImageUrl] = useState("");
   const [remarks, setRemarks] = useState("");
 
   function toggleTarget(target: ReleaseTarget) {
@@ -39,7 +43,7 @@ export function ReleaseModal({
 
   function save() {
     if (!targets.length) return;
-    onSubmit({ targets, date, method, trackingNumber, receivedBy, remarks });
+    onSubmit({ targets, date, method, trackingNumber, receivedBy, orcrImageUrl, plateImageUrl, remarks });
   }
 
   return (
@@ -95,6 +99,20 @@ export function ReleaseModal({
               <input value={receivedBy} onChange={(event) => setReceivedBy(event.target.value)} />
             </label>
           )}
+
+          {targets.includes("orcr") ? (
+            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+              Insert Image Link for ORCR
+              <input value={orcrImageUrl} onChange={(event) => setOrcrImageUrl(event.target.value)} />
+            </label>
+          ) : null}
+
+          {targets.includes("plate") ? (
+            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+              Insert Image Link for Plate
+              <input value={plateImageUrl} onChange={(event) => setPlateImageUrl(event.target.value)} />
+            </label>
+          ) : null}
 
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
             Remarks

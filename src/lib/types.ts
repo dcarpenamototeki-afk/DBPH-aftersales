@@ -13,10 +13,12 @@ export type OrcrPlateRecord = {
   orcr_release_method: "LBC" | "WALK IN" | "";
   orcr_lbc_tracking_number: string;
   orcr_received_by: string;
+  orcr_claimed_image_url: string;
   plate_release_date: string | null;
   plate_release_method: "LBC" | "WALK IN" | "";
   plate_lbc_tracking_number: string;
   plate_received_by: string;
+  plate_claimed_image_url: string;
   remarks: string;
   created_at: string;
   updated_at: string;

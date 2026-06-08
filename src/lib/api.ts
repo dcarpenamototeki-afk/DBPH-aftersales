@@ -16,6 +16,30 @@ export async function requireAllowedUser(request: NextRequest) {
   return { user: data.user };
 }
 
+function shouldPreserveText(key: string) {
+  const normalized = key.toLowerCase();
+  return (
+    normalized.includes("url") ||
+    normalized.includes("link") ||
+    normalized.includes("id") ||
+    normalized.includes("email") ||
+    normalized.includes("date")
+  );
+}
+
+export function normalizePayload(payload: unknown): unknown {
+  if (Array.isArray(payload)) return payload.map((item) => normalizePayload(item));
+  if (!payload || typeof payload !== "object") return payload;
+
+  return Object.fromEntries(
+    Object.entries(payload as Record<string, unknown>).map(([key, value]) => {
+      if (typeof value === "string" && !shouldPreserveText(key)) return [key, value.trim().toUpperCase()];
+      if (value && typeof value === "object") return [key, normalizePayload(value)];
+      return [key, value];
+    })
+  );
+}
+
 export async function listRecords(request: NextRequest, table: string, searchable: readonly string[]) {
   const auth = await requireAllowedUser(request);
   if (auth.error) return auth.error;
@@ -31,7 +55,7 @@ export async function listRecords(request: NextRequest, table: string, searchabl
 
   const { data, error } = await query;
   if (error) return jsonError(error.message, 500);
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: normalizePayload(data) });
 }
 
 export async function createRecord(request: NextRequest, table: string) {
@@ -39,10 +63,10 @@ export async function createRecord(request: NextRequest, table: string) {
   if (auth.error) return auth.error;
 
   const supabase = getSupabaseAdmin();
-  const payload = await request.json();
+  const payload = normalizePayload(await request.json()) as Record<string, unknown>;
   const { data, error } = await supabase.from(table).insert(payload).select("*").single();
   if (error) return jsonError(error.message, 500);
-  return NextResponse.json({ data }, { status: 201 });
+  return NextResponse.json({ data: normalizePayload(data) }, { status: 201 });
 }
 
 export async function updateRecord(request: NextRequest, table: string, id: string) {
@@ -50,10 +74,10 @@ export async function updateRecord(request: NextRequest, table: string, id: stri
   if (auth.error) return auth.error;
 
   const supabase = getSupabaseAdmin();
-  const payload = await request.json();
+  const payload = normalizePayload(await request.json()) as Record<string, unknown>;
   const { data, error } = await supabase.from(table).update(payload).eq("id", id).select("*").single();
   if (error) return jsonError(error.message, 500);
-  return NextResponse.json({ data });
+  return NextResponse.json({ data: normalizePayload(data) });
 }
 
 export async function deleteRecord(request: NextRequest, table: string, id: string) {

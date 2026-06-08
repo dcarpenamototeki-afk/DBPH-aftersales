@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonError, requireAllowedUser } from "@/lib/api";
+import { jsonError, normalizePayload, requireAllowedUser } from "@/lib/api";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -47,5 +47,5 @@ export async function GET(request: NextRequest) {
     }))
   ];
 
-  return NextResponse.json({ matches });
+  return NextResponse.json({ matches: normalizePayload(matches) });
 }

@@ -108,6 +108,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
       update[`${target}_release_method`] = payload.method;
       update[`${target}_lbc_tracking_number`] = payload.method === "LBC" ? payload.trackingNumber : "";
       update[`${target}_received_by`] = payload.method === "WALK IN" ? payload.receivedBy : "";
+      update[`${target}_claimed_image_url`] = target === "orcr" ? payload.orcrImageUrl : payload.plateImageUrl;
       if (target === "orcr") update.orcr_on_hand = false;
       if (target === "plate") update.plate_on_hand = false;
     });

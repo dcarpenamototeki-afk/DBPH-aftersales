@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonError, requireAllowedUser } from "@/lib/api";
+import { jsonError, normalizePayload, requireAllowedUser } from "@/lib/api";
 import { googleRowsToObjects, mapImportRow } from "@/lib/import";
 import { moduleConfig } from "@/lib/schema";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   if (!Array.isArray(rows)) return jsonError("Rows must be an array.");
 
   const supabase = getSupabaseAdmin();
-  const mapped = rows.map((row) => mapImportRow(moduleKey, row));
+  const mapped = rows.map((row) => normalizePayload(mapImportRow(moduleKey, row)) as Record<string, unknown>);
   const kept: Record<string, unknown>[] = [];
   const skipped: Record<string, unknown>[] = [];
 
