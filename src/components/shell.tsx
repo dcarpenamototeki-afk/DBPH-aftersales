@@ -64,9 +64,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="mt-2">
             <NavLink href="/import" label="Import" icon={Import} />
+            <AccountMenu />
           </div>
           </nav>
-          <AccountMenu />
         </aside>
         <main className="w-full p-4 lg:ml-64 lg:p-6">{children}</main>
       </div>

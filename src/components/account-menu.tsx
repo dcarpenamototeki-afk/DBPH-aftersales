@@ -22,11 +22,13 @@ export function AccountMenu() {
   }
 
   return (
-    <div className="border-t border-line p-3">
+    <div className="mt-4 border-t border-line pt-3">
+      <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-slate-500">Signed In</p>
       <div className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
         <span className="truncate">{email || "Signed in"}</span>
-        <button title="Logout" className="rounded p-1 text-slate-500 hover:bg-white hover:text-ink" onClick={logout}>
+        <button title="Logout" className="inline-flex items-center gap-1 rounded p-1 text-slate-500 hover:bg-white hover:text-ink" onClick={logout}>
           <LogOut size={15} />
+          <span className="sr-only">Logout</span>
         </button>
       </div>
     </div>
