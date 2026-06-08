@@ -22,12 +22,20 @@ const aliases: Record<string, string> = {
   date_in: "date_in",
   plate: "plate_number",
   plate_number: "plate_number",
+  date_received: "date_received",
+  source_location: "source_location",
+  source: "source_location",
+  location_found: "source_location",
+  status: "status",
+  matched_registered_name: "matched_registered_name",
+  matched_engine_number: "matched_engine_number",
+  matched_chassis_number: "matched_chassis_number",
+  matched_record_type: "matched_record_type",
   plate_on_hand: "plate_on_hand",
   remarks: "remarks",
   sales_invoice_number: "sales_invoice_number",
   si_number: "sales_invoice_number",
   invoice_number: "sales_invoice_number",
-  date_received: "date_received",
   motor_number: "motor_number",
   motor_no: "motor_number",
   motorcycle_model: "motorcycle_model",
@@ -70,6 +78,7 @@ export function mapImportRow(module: ModuleKey, row: Record<string, unknown>) {
   });
 
   if (module === "inventory" && !out.main_status) out.main_status = "AVAILABLE";
+  if (module === "unidentifiedPlates" && !out.status) out.status = "UNTRACED";
   return out;
 }
 

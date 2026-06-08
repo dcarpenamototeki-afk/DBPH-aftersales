@@ -56,7 +56,27 @@ export type InventoryRecord = {
   updated_at: string;
 };
 
-export type ModuleKey = "orcr" | "sales" | "inventory";
+export type UnidentifiedPlateRecord = {
+  id: string;
+  plate_number: string;
+  date_received: string | null;
+  source_location: string;
+  status: "UNTRACED" | "MATCHED" | "RELEASED";
+  matched_registered_name: string;
+  matched_engine_number: string;
+  matched_chassis_number: string;
+  matched_record_type: string;
+  matched_record_id: string | null;
+  release_date: string | null;
+  release_method: "LBC" | "WALK IN" | "";
+  lbc_tracking_number: string;
+  received_by: string;
+  remarks: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ModuleKey = "orcr" | "sales" | "inventory" | "unidentifiedPlates";
 
 export type ColumnDef<T> = {
   key: keyof T;

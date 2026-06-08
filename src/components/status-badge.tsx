@@ -1,8 +1,8 @@
 import { clsx } from "clsx";
 
-const green = ["YES", "COMPLETE", "AVAILABLE", "RECEIVED", "TRUE", "ORCR + PLATE", "CLAIMED"];
-const red = ["NO", "SOLD", "INCOMPLETE", "FALSE"];
-const yellow = ["PENDING", "TEMPORARY", "WALK IN", "LBC", "ORCR ONLY", "PLATE ONLY", "TO FOLLOW"];
+const green = ["YES", "COMPLETE", "AVAILABLE", "RECEIVED", "TRUE", "ORCR + PLATE", "CLAIMED", "MATCHED"];
+const red = ["NO", "SOLD", "INCOMPLETE", "FALSE", "UNTRACED"];
+const yellow = ["PENDING", "TEMPORARY", "WALK IN", "LBC", "ORCR ONLY", "PLATE ONLY", "TO FOLLOW", "RELEASED"];
 
 export function StatusBadge({ value }: { value: unknown }) {
   const text =

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ChevronDown, FileSpreadsheet, Import, PackageCheck, Warehouse } from "lucide-react";
+import { BarChart3, ChevronDown, FileSpreadsheet, Import, PackageCheck, Radar, Warehouse } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { AuthGate } from "./auth-gate";
@@ -48,6 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="mt-1 grid gap-1">
               <NavLink href="/orcr" label="ORCR / Plate Monitoring" icon={FileSpreadsheet} inset />
               <NavLink href="/released" label="Released ORCR / Plate" icon={PackageCheck} inset />
+              <NavLink href="/unidentified-plates" label="Unidentified Plates" icon={Radar} inset />
             </div>
           </details>
 

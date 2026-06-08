@@ -1,4 +1,4 @@
-import { ColumnDef, InventoryRecord, OrcrPlateRecord, SalesInvoiceRecord } from "./types";
+import { ColumnDef, InventoryRecord, OrcrPlateRecord, SalesInvoiceRecord, UnidentifiedPlateRecord } from "./types";
 
 export const orcrColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "registered_name", label: "Registered Name", required: true },
@@ -34,6 +34,18 @@ export const inventoryColumns: ColumnDef<InventoryRecord>[] = [
   { key: "costing", label: "Costing", type: "money" }
 ];
 
+export const unidentifiedPlateColumns: ColumnDef<UnidentifiedPlateRecord>[] = [
+  { key: "plate_number", label: "Plate Number", required: true },
+  { key: "date_received", label: "Date Received", type: "date" },
+  { key: "source_location", label: "Source / Location Found" },
+  { key: "status", label: "Status", type: "status", options: ["UNTRACED", "MATCHED", "RELEASED"] },
+  { key: "matched_registered_name", label: "Matched Registered Name" },
+  { key: "matched_engine_number", label: "Matched Engine Number" },
+  { key: "matched_chassis_number", label: "Matched Chassis Number" },
+  { key: "matched_record_type", label: "Matched Record Type" },
+  { key: "remarks", label: "Remarks" }
+];
+
 export const moduleConfig = {
   orcr: {
     title: "ORCR / Plate Monitoring",
@@ -58,5 +70,13 @@ export const moduleConfig = {
     duplicateKeys: ["motor_number", "plate_number"],
     columns: inventoryColumns,
     searchable: ["motor_number", "registered_name", "motorcycle_model", "new_owner", "plate_number"]
+  },
+  unidentifiedPlates: {
+    title: "Unidentified Plates",
+    apiPath: "/api/unidentified-plates",
+    table: "unidentified_plate_records",
+    duplicateKeys: ["plate_number"],
+    columns: unidentifiedPlateColumns,
+    searchable: ["plate_number", "source_location", "matched_registered_name", "matched_engine_number", "matched_chassis_number"]
   }
 } as const;
