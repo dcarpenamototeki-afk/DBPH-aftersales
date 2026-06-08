@@ -7,6 +7,7 @@ import { BarChart3, ChevronDown, FileSpreadsheet, Import, PackageCheck, Warehous
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { AuthGate } from "./auth-gate";
+import { AccountMenu } from "./account-menu";
 
 function NavLink({ href, label, icon: Icon, inset = false }: { href: string; label: string; icon: LucideIcon; inset?: boolean }) {
   const pathname = usePathname();
@@ -31,12 +32,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AuthGate>
       <div className="min-h-screen lg:flex">
-        <aside className="border-b border-line bg-white lg:fixed lg:inset-y-0 lg:w-64 lg:border-b-0 lg:border-r">
+        <aside className="border-b border-line bg-white lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col lg:border-b-0 lg:border-r">
           <div className="border-b border-line px-5 py-4">
             <Image src="/dreambike-logo.png" alt="Dreambike PH" width={220} height={56} className="h-12 w-full object-contain object-left" />
             <p className="mt-2 text-center text-xs font-bold tracking-[0.24em] text-slate-600">MONITORING SYSTEM</p>
           </div>
-          <nav className="flex gap-1 overflow-x-auto p-3 lg:block">
+          <nav className="flex gap-1 overflow-x-auto p-3 lg:block lg:flex-1">
             <NavLink href="/" label="Dashboard" icon={BarChart3} />
 
           <details open className="mt-2">
@@ -65,6 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NavLink href="/import" label="Import" icon={Import} />
           </div>
           </nav>
+          <AccountMenu />
         </aside>
         <main className="w-full p-4 lg:ml-64 lg:p-6">{children}</main>
       </div>

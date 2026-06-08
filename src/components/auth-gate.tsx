@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { getBrowserSupabaseClient } from "@/lib/supabase";
 
 const allowedUid = process.env.NEXT_PUBLIC_ALLOWED_USER_UID ?? "25f88fac-e5b9-4148-82cd-2762b7b9d607";
@@ -11,7 +10,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
-  const [email, setEmail] = useState("");
   const supabase = getBrowserSupabaseClient();
 
   useEffect(() => {
@@ -26,7 +24,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setEmail(session.user.email ?? session.user.id);
       if (active) setReady(true);
     }
 
@@ -49,24 +46,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router, supabase]);
 
-  async function logout() {
-    await supabase.auth.signOut();
-    router.replace("/login");
-  }
-
   if (!ready) {
     return <div className="grid min-h-screen place-items-center text-sm text-slate-500">Checking login...</div>;
   }
 
-  return (
-    <>
-      <div className="fixed bottom-4 left-4 z-30 hidden w-56 items-center justify-between gap-2 rounded-md border border-line bg-white px-3 py-2 text-xs text-slate-600 shadow-soft lg:flex">
-        <span className="truncate">{email}</span>
-        <button title="Logout" className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-ink" onClick={logout}>
-          <LogOut size={14} />
-        </button>
-      </div>
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }
