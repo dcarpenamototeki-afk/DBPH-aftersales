@@ -1,18 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ClipboardCheck, FileText, Package, ShieldCheck } from "lucide-react";
+import { ClipboardCheck, Package, ShieldCheck } from "lucide-react";
 import { PageHeader } from "./page-header";
 
 const cards = [
   ["totalOrcr", "Total ORCR Records", ClipboardCheck],
-  ["orcrOnHand", "ORCR on Hand", ShieldCheck],
-  ["plateOnHand", "Plate on Hand", ShieldCheck],
-  ["pendingOrcr", "Pending ORCR", ClipboardCheck],
+  ["activeOrcrMonitoring", "Active ORCR Monitoring", ShieldCheck],
   ["released", "Released ORCR / Plate", ClipboardCheck],
-  ["totalSales", "Sales Invoice Records", FileText],
-  ["totalInventory", "Total Inventory Units", Package],
-  ["available", "Available Units", Package],
+  ["totalInventory", "Total SB Finance Units", Package],
+  ["available", "Available Inventory", Package],
   ["sold", "Sold Units", Package]
 ] as const;
 

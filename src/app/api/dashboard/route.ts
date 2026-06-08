@@ -23,12 +23,23 @@ async function countReleasedOrcrPlate() {
   return total ?? 0;
 }
 
+async function countActiveOrcrMonitoring() {
+  const { count: total, error } = await getSupabaseAdmin()
+    .from("orcr_plate_records")
+    .select("*", { count: "exact", head: true })
+    .is("orcr_release_date", null)
+    .is("plate_release_date", null);
+  if (error) throw error;
+  return total ?? 0;
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireAllowedUser(request);
   if (auth.error) return auth.error;
 
   const [
     totalOrcr,
+    activeOrcrMonitoring,
     orcrOnHand,
     plateOnHand,
     pendingOrcr,
@@ -39,6 +50,7 @@ export async function GET(request: NextRequest) {
     sold
   ] = await Promise.all([
     count("orcr_plate_records"),
+    countActiveOrcrMonitoring(),
     count("orcr_plate_records", { column: "orcr_on_hand", value: true }),
     count("orcr_plate_records", { column: "plate_on_hand", value: true }),
     count("orcr_plate_records", { column: "orcr_on_hand", value: false }),
@@ -51,6 +63,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     totalOrcr,
+    activeOrcrMonitoring,
     orcrOnHand,
     plateOnHand,
     pendingOrcr,

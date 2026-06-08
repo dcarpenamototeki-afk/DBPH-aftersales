@@ -60,8 +60,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="fixed right-4 top-3 z-30 hidden items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-xs text-slate-600 shadow-soft lg:flex">
-        <span>{email}</span>
+      <div className="fixed bottom-4 left-4 z-30 hidden w-56 items-center justify-between gap-2 rounded-md border border-line bg-white px-3 py-2 text-xs text-slate-600 shadow-soft lg:flex">
+        <span className="truncate">{email}</span>
         <button title="Logout" className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-ink" onClick={logout}>
           <LogOut size={14} />
         </button>
