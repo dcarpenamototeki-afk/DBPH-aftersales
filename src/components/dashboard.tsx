@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ClipboardCheck, Package, ShieldCheck } from "lucide-react";
 import { PageHeader } from "./page-header";
+import { getBrowserSupabaseClient } from "@/lib/supabase";
 
 const cards = [
   ["totalOrcr", "Total ORCR Records", ClipboardCheck],
@@ -18,10 +19,32 @@ export function Dashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/dashboard")
-      .then((response) => response.json())
-      .then((body) => (body.error ? setError(body.error) : setStats(body)))
-      .catch(() => setError("Connect Supabase to load dashboard totals."));
+    async function loadStats() {
+      const supabase = getBrowserSupabaseClient();
+      const [orcr, inventory] = await Promise.all([
+        supabase.from("orcr_plate_records").select("orcr_release_date,plate_release_date"),
+        supabase.from("sb_finance_inventory").select("main_status")
+      ]);
+
+      if (orcr.error || inventory.error) {
+        setError(orcr.error?.message ?? inventory.error?.message ?? "Unable to load dashboard totals.");
+        return;
+      }
+
+      const orcrRows = (orcr.data ?? []) as { orcr_release_date: string | null; plate_release_date: string | null }[];
+      const inventoryRows = (inventory.data ?? []) as { main_status: string | null }[];
+
+      setStats({
+        totalOrcr: orcrRows.length,
+        activeOrcrMonitoring: orcrRows.filter((row) => !row.orcr_release_date && !row.plate_release_date).length,
+        released: orcrRows.filter((row) => row.orcr_release_date || row.plate_release_date).length,
+        totalInventory: inventoryRows.length,
+        available: inventoryRows.filter((row) => row.main_status !== "SOLD").length,
+        sold: inventoryRows.filter((row) => row.main_status === "SOLD").length
+      });
+    }
+
+    loadStats().catch(() => setError("Connect Supabase to load dashboard totals."));
   }, []);
 
   return (
