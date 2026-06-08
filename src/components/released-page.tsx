@@ -45,6 +45,7 @@ export function ReleasedPage() {
   const [editing, setEditing] = useState<Partial<OrcrPlateRecord> | null>(null);
   const [deleting, setDeleting] = useState<OrcrPlateRecord | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
@@ -82,6 +83,11 @@ export function ReleasedPage() {
     await fetch(`/api/orcr/${deleting.id}`, { method: "DELETE" });
     setDeleting(null);
     load();
+  }
+
+  function openPreview(url: string) {
+    setPreviewFailed(false);
+    setPreviewUrl(url);
   }
 
   const released = useMemo(() => {
@@ -166,7 +172,7 @@ export function ReleasedPage() {
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{detail(row.orcr_release_method, row.orcr_lbc_tracking_number, row.orcr_received_by)}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">
                     {row.orcr_claimed_image_url ? (
-                      <button className="font-semibold text-blue-700 hover:underline" onClick={() => setPreviewUrl(row.orcr_claimed_image_url)}>IMAGE</button>
+                      <button className="font-semibold text-blue-700 hover:underline" onClick={() => openPreview(row.orcr_claimed_image_url)}>IMAGE</button>
                     ) : "-"}
                   </td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_release_date ?? "-"}</td>
@@ -174,7 +180,7 @@ export function ReleasedPage() {
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{detail(row.plate_release_method, row.plate_lbc_tracking_number, row.plate_received_by)}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">
                     {row.plate_claimed_image_url ? (
-                      <button className="font-semibold text-blue-700 hover:underline" onClick={() => setPreviewUrl(row.plate_claimed_image_url)}>IMAGE</button>
+                      <button className="font-semibold text-blue-700 hover:underline" onClick={() => openPreview(row.plate_claimed_image_url)}>IMAGE</button>
                     ) : "-"}
                   </td>
                   <td className="sticky right-0 whitespace-nowrap border-b border-line bg-inherit px-3 py-2">
@@ -227,9 +233,23 @@ export function ReleasedPage() {
               </button>
             </div>
             <div className="bg-slate-50 p-4">
-              <img src={previewUrl} alt="Claimed document" className="mx-auto max-h-[70vh] max-w-full rounded-md object-contain" />
+              {!previewFailed && !previewUrl.includes("facebook.com") && !previewUrl.includes("fbcdn.net") ? (
+                <img
+                  src={previewUrl}
+                  alt="Claimed document"
+                  className="mx-auto max-h-[70vh] max-w-full rounded-md object-contain"
+                  onError={() => setPreviewFailed(true)}
+                />
+              ) : (
+                <div className="rounded-md border border-line bg-white p-5 text-center">
+                  <p className="font-semibold text-ink">Preview unavailable</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Facebook Messenger links are protected pages, not direct image files. Open the link to view the picture.
+                  </p>
+                </div>
+              )}
               <a className="mt-3 block text-center text-sm font-semibold text-blue-700 hover:underline" href={previewUrl} target="_blank" rel="noreferrer">
-                Open image link
+                {previewUrl.includes("facebook.com") ? "Open Facebook image" : "Open image link"}
               </a>
             </div>
           </div>
