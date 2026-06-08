@@ -40,6 +40,33 @@ export function normalizePayload(payload: unknown): unknown {
   );
 }
 
+async function writeActivityLog({
+  table,
+  recordId,
+  action,
+  user,
+  oldData,
+  newData
+}: {
+  table: string;
+  recordId?: string;
+  action: "CREATE" | "UPDATE" | "DELETE";
+  user: { id: string; email?: string | null };
+  oldData?: unknown;
+  newData?: unknown;
+}) {
+  const supabase = getSupabaseAdmin();
+  await supabase.from("activity_log").insert({
+    table_name: table,
+    record_id: recordId ?? null,
+    action,
+    changed_by: user.id,
+    changed_by_email: user.email ?? "",
+    old_data: oldData ?? null,
+    new_data: newData ?? null
+  });
+}
+
 export async function listRecords(request: NextRequest, table: string, searchable: readonly string[]) {
   const auth = await requireAllowedUser(request);
   if (auth.error) return auth.error;
@@ -66,6 +93,13 @@ export async function createRecord(request: NextRequest, table: string) {
   const payload = normalizePayload(await request.json()) as Record<string, unknown>;
   const { data, error } = await supabase.from(table).insert(payload).select("*").single();
   if (error) return jsonError(error.message, 500);
+  await writeActivityLog({
+    table,
+    recordId: data?.id,
+    action: "CREATE",
+    user: auth.user,
+    newData: normalizePayload(data)
+  });
   return NextResponse.json({ data: normalizePayload(data) }, { status: 201 });
 }
 
@@ -75,8 +109,17 @@ export async function updateRecord(request: NextRequest, table: string, id: stri
 
   const supabase = getSupabaseAdmin();
   const payload = normalizePayload(await request.json()) as Record<string, unknown>;
+  const { data: oldData } = await supabase.from(table).select("*").eq("id", id).single();
   const { data, error } = await supabase.from(table).update(payload).eq("id", id).select("*").single();
   if (error) return jsonError(error.message, 500);
+  await writeActivityLog({
+    table,
+    recordId: id,
+    action: "UPDATE",
+    user: auth.user,
+    oldData: normalizePayload(oldData),
+    newData: normalizePayload(data)
+  });
   return NextResponse.json({ data: normalizePayload(data) });
 }
 
@@ -85,7 +128,15 @@ export async function deleteRecord(request: NextRequest, table: string, id: stri
   if (auth.error) return auth.error;
 
   const supabase = getSupabaseAdmin();
+  const { data: oldData } = await supabase.from(table).select("*").eq("id", id).single();
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) return jsonError(error.message, 500);
+  await writeActivityLog({
+    table,
+    recordId: id,
+    action: "DELETE",
+    user: auth.user,
+    oldData: normalizePayload(oldData)
+  });
   return NextResponse.json({ ok: true });
 }

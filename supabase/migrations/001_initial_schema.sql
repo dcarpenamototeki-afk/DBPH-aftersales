@@ -94,6 +94,7 @@ create table if not exists public.activity_log (
   record_id uuid,
   action text not null,
   changed_by uuid,
+  changed_by_email text not null default '',
   old_data jsonb,
   new_data jsonb,
   created_at timestamptz not null default now()

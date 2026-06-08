@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ChevronDown, FileSpreadsheet, Import, PackageCheck, Radar, Warehouse } from "lucide-react";
+import { BarChart3, ChevronDown, FileSpreadsheet, History, Import, PackageCheck, Radar, Warehouse } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { AuthGate } from "./auth-gate";
@@ -65,6 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="mt-2">
             <NavLink href="/import" label="Import" icon={Import} />
+            <NavLink href="/audit-log" label="Audit Log" icon={History} />
             <AccountMenu />
           </div>
           </nav>
