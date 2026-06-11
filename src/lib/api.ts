@@ -6,13 +6,20 @@ export function jsonError(message: string, status = 400) {
 }
 
 export async function requireAllowedUser(request: NextRequest) {
-  const allowedUid = process.env.ALLOWED_USER_UID ?? "25f88fac-e5b9-4148-82cd-2762b7b9d607";
+  const allowedUids = (
+  process.env.ALLOWED_USER_UIDS ??
+  "25f88fac-e5b9-4148-82cd-2762b7b9d607,4d31c57b-4750-4077-8cf4-ed6b159b8f94"
+)
+  .split(",")
+  .map((uid) => uid.trim());
+  
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return { error: jsonError("Login required.", 401) };
 
   const { data, error } = await getSupabaseAdmin().auth.getUser(token);
   if (error || !data.user) return { error: jsonError("Invalid login session.", 401) };
-  if (data.user.id !== allowedUid) return { error: jsonError("This user is not allowed to access the system.", 403) };
+if (!allowedUids.includes(data.user.id)) return { error: jsonError("This user is not allowed to access the system.", 403) };
+  
   return { user: data.user };
 }
 
