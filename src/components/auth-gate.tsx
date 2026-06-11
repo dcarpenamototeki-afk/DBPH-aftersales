@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase";
 
-const allowedUid = process.env.NEXT_PUBLIC_ALLOWED_USER_UID ?? "25f88fac-e5b9-4148-82cd-2762b7b9d607";
+const allowedUids = (
+  process.env.NEXT_PUBLIC_ALLOWED_USER_UIDS ??
+  "25f88fac-e5b9-4148-82cd-2762b7b9d607,4d31c57b-4750-4077-8cf4-ed6b159b8f94"
+)
+  .split(",")
+  .map((uid) => uid.trim());
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -18,8 +23,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     async function checkSession() {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
-      if (!session || session.user.id !== allowedUid) {
-        if (session) await supabase.auth.signOut();
+if (!session || !allowedUids.includes(session.user.id)) {        if (session) await supabase.auth.signOut();
         router.replace(`/login?next=${encodeURIComponent(pathname)}`);
         return;
       }
