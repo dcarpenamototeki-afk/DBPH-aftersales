@@ -5,7 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase";
 
-const allowedUid = process.env.NEXT_PUBLIC_ALLOWED_USER_UID ?? "25f88fac-e5b9-4148-82cd-2762b7b9d607";
+const allowedUids = (
+  process.env.NEXT_PUBLIC_ALLOWED_USER_UIDS ??
+  "25f88fac-e5b9-4148-82cd-2762b7b9d607,4d31c57b-4750-4077-8cf4-ed6b159b8f94"
+)
+  .split(",")
+  .map((uid) => uid.trim());
 
 function LoginForm() {
   const router = useRouter();
@@ -28,7 +33,7 @@ function LoginForm() {
       return;
     }
 
-    if (data.user.id !== allowedUid) {
+    if (!allowedUids.includes(data.user.id)) {
       await supabase.auth.signOut();
       setError("This user is not allowed to access the monitoring system.");
       setLoading(false);
