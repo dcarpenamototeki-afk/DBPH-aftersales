@@ -149,6 +149,38 @@ export function UnidentifiedPlatesPage() {
       setError(body.error ?? "Unable to release plate.");
       return;
     }
+
+    const releasePayload = {
+      registered_name: releasing.matched_registered_name || "UNIDENTIFIED PLATE",
+      owner_name: "",
+      motorcycle_unit_type: releasing.matched_record_type || "",
+      color: "",
+      engine_number: releasing.matched_engine_number || "",
+      chassis_number: releasing.matched_chassis_number || "",
+      orcr_on_hand: false,
+      date_in: releasing.date_received,
+      plate_number: releasing.plate_number,
+      plate_on_hand: false,
+      plate_release_date: releaseForm.release_date,
+      plate_release_method: releaseForm.release_method,
+      plate_lbc_tracking_number: releaseForm.release_method === "LBC" ? releaseForm.lbc_tracking_number : "",
+      plate_received_by: releaseForm.release_method === "WALK IN" ? releaseForm.received_by : "",
+      remarks: releaseForm.remarks || releasing.remarks
+    };
+
+    const existingOrcrId = releasing.matched_record_type === "ORCR / PLATE" ? releasing.matched_record_id : null;
+    const releasedResponse = await fetch(existingOrcrId ? `/api/orcr/${existingOrcrId}` : "/api/orcr", {
+      method: existingOrcrId ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(releasePayload)
+    });
+
+    if (!releasedResponse.ok) {
+      const body = await releasedResponse.json();
+      setError(body.error ?? "Plate was marked released, but unable to add it to Released ORCR / Plate.");
+      return;
+    }
+
     setReleasing(null);
     load();
   }

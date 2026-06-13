@@ -12,6 +12,7 @@ export type ReleasePayload = {
   method: ReleaseMethod;
   trackingNumber: string;
   receivedBy: string;
+  newOwnerName: string;
   orcrImageUrl: string;
   plateImageUrl: string;
   remarks: string;
@@ -31,6 +32,7 @@ export function ReleaseModal({
   const [method, setMethod] = useState<ReleaseMethod>("LBC");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [receivedBy, setReceivedBy] = useState("");
+  const [newOwnerName, setNewOwnerName] = useState("");
   const [orcrImageUrl, setOrcrImageUrl] = useState("");
   const [plateImageUrl, setPlateImageUrl] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -43,7 +45,7 @@ export function ReleaseModal({
 
   function save() {
     if (!targets.length) return;
-    onSubmit({ targets, date, method, trackingNumber, receivedBy, orcrImageUrl, plateImageUrl, remarks });
+    onSubmit({ targets, date, method, trackingNumber, receivedBy, newOwnerName, orcrImageUrl, plateImageUrl, remarks });
   }
 
   return (
@@ -99,6 +101,11 @@ export function ReleaseModal({
               <input value={receivedBy} onChange={(event) => setReceivedBy(event.target.value)} />
             </label>
           )}
+
+          <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+            New Owner&apos;s Name
+            <input value={newOwnerName} onChange={(event) => setNewOwnerName(event.target.value)} />
+          </label>
 
           {targets.includes("orcr") ? (
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">

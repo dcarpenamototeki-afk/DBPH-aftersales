@@ -113,6 +113,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
       if (target === "plate") update.plate_on_hand = false;
     });
 
+    if (payload.newOwnerName) update.new_owner_name = payload.newOwnerName;
     if (payload.remarks) update.remarks = payload.remarks;
 
     const response = await fetch(`${config.apiPath}/${releasing.id}`, {

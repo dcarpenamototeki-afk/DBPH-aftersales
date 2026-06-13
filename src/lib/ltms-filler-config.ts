@@ -1,9 +1,9 @@
 export type LtmsFieldKey =
+  | "ltoClientId"
   | "lastName"
   | "firstName"
   | "middleName"
   | "email"
-  | "telephone"
   | "mobile"
   | "houseNo"
   | "streetVillage"
@@ -36,11 +36,11 @@ export type LtmsTemplateConfig = {
 };
 
 export const ltmsFields: LtmsFieldDefinition[] = [
+  { key: "ltoClientId", label: "LTO Client ID" },
   { key: "lastName", label: "Last Name" },
   { key: "firstName", label: "First Name" },
   { key: "middleName", label: "Middle Name" },
   { key: "email", label: "Email", inputType: "email" },
-  { key: "telephone", label: "Telephone", inputType: "tel" },
   { key: "mobile", label: "Mobile", inputType: "tel" },
   { key: "houseNo", label: "House No" },
   { key: "streetVillage", label: "Street/Village" },
@@ -63,11 +63,11 @@ export const ltmsTemplates: LtmsTemplateConfig[] = [
     font: "26px Arial",
     fillStyle: "#111827",
     coordinates: [
+      { field: "ltoClientId", x: 78, y: 376, maxWidth: 470 },
       { field: "lastName", x: 78, y: 496, maxWidth: 470 },
       { field: "firstName", x: 78, y: 617, maxWidth: 470 },
       { field: "middleName", x: 78, y: 737, maxWidth: 470 },
       { field: "email", x: 136, y: 979, maxWidth: 380, fontSize: 22 },
-      { field: "telephone", x: 78, y: 1084, maxWidth: 500 },
       { field: "mobile", x: 78, y: 1325, maxWidth: 405 }
     ]
   },

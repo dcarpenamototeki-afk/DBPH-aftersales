@@ -64,8 +64,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </details>
 
           <div className="mt-2">
-  <NavLink href="/import" label="Import" icon={Import} />
   <NavLink href="/ltms-filler" label="LTMS Form Filler" icon={FileText} />
+  <NavLink href="/import" label="Import" icon={Import} />
   <NavLink href="/audit-log" label="Audit Log" icon={History} />
   <AccountMenu />
 </div>

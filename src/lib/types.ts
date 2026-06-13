@@ -3,6 +3,7 @@ export type OrcrPlateRecord = {
   registered_name: string;
   owner_name: string;
   motorcycle_unit_type: string;
+  color: string;
   engine_number: string;
   chassis_number: string;
   orcr_on_hand: boolean;
@@ -19,6 +20,7 @@ export type OrcrPlateRecord = {
   plate_lbc_tracking_number: string;
   plate_received_by: string;
   plate_claimed_image_url: string;
+  new_owner_name: string;
   remarks: string;
   created_at: string;
   updated_at: string;

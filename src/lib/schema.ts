@@ -4,6 +4,7 @@ export const orcrColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "registered_name", label: "Registered Name", required: true },
   { key: "owner_name", label: "Owner Name" },
   { key: "motorcycle_unit_type", label: "Motorcycle / Unit Type" },
+  { key: "color", label: "Color" },
   { key: "engine_number", label: "Engine Number" },
   { key: "chassis_number", label: "Chassis Number" },
   { key: "orcr_on_hand", label: "ORCR on Hand", type: "boolean" },
@@ -53,7 +54,7 @@ export const moduleConfig = {
     table: "orcr_plate_records",
     duplicateKeys: ["engine_number", "chassis_number", "plate_number"],
     columns: orcrColumns,
-    searchable: ["registered_name", "owner_name", "motorcycle_unit_type", "engine_number", "chassis_number", "plate_number"]
+    searchable: ["registered_name", "owner_name", "motorcycle_unit_type", "color", "engine_number", "chassis_number", "plate_number"]
   },
   sales: {
     title: "Sales Invoice",
