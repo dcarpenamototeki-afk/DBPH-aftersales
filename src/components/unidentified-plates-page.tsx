@@ -78,7 +78,7 @@ export function UnidentifiedPlatesPage() {
   }, [load]);
 
   const filtered = useMemo(() => {
-    return rows.filter((row) => !status || row.status === status);
+    return rows.filter((row) => (status ? row.status === status : row.status !== "RELEASED"));
   }, [rows, status]);
 
   async function saveRecord() {
@@ -199,7 +199,7 @@ export function UnidentifiedPlatesPage() {
           <input className="w-full pl-9" placeholder="Search plate number or matched owner" value={search} onChange={(event) => setSearch(event.target.value)} />
         </label>
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
-          <option value="">All status</option>
+          <option value="">Active only</option>
           <option value="UNTRACED">Untraced</option>
           <option value="MATCHED">Matched</option>
           <option value="RELEASED">Released</option>
