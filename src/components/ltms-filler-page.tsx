@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileImage, RotateCcw, Wand2, X } from "lucide-react";
+import { Download, FileText, FileImage, RotateCcw, Wand2, X } from "lucide-react";
 import { emptyLtmsForm, ltmsFields, ltmsTemplates } from "@/lib/ltms-filler-config";
 import type { LtmsFieldKey, LtmsTemplateConfig } from "@/lib/ltms-filler-config";
 import { PageHeader } from "./page-header";
