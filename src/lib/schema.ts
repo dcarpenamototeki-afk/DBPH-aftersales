@@ -11,7 +11,7 @@ export const orcrColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "date_in", label: "Date In", type: "date" },
   { key: "plate_number", label: "Plate Number" },
   { key: "plate_on_hand", label: "Plate on Hand", type: "boolean" },
-  { key: "remarks", label: "Remarks" }
+  { key: "remarks", label: "Remarks", type: "status", options: ["CONSIGNMENT", "SINSKI / FOR TOO", "SB FINANCE", "PERSONAL UNIT", "FROM SWAP", "TEMPORARY"] }
 ];
 
 export const salesColumns: ColumnDef<SalesInvoiceRecord>[] = [

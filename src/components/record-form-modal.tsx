@@ -31,6 +31,8 @@ export function RecordFormModal<T extends Record<string, unknown>>({
           {columns.map((column) => {
             const key = column.key;
             const value = values[key] as string | number | boolean | null | undefined;
+            const textValue = String(value ?? "");
+            const optionValues = column.options ?? [];
 
             return (
               <label key={String(key)} className="grid gap-1.5 text-sm font-medium text-slate-700">
@@ -41,9 +43,12 @@ export function RecordFormModal<T extends Record<string, unknown>>({
                     <option value="false">NO</option>
                   </select>
                 ) : column.options ? (
-                  <select value={String(value ?? "")} onChange={(event) => onChange(key, event.target.value)}>
+                  <select value={textValue} onChange={(event) => onChange(key, event.target.value)}>
                     <option value="">Select</option>
-                    {column.options.map((option) => (
+                    {textValue && !optionValues.includes(textValue) ? (
+                      <option value={textValue}>{textValue}</option>
+                    ) : null}
+                    {optionValues.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>
