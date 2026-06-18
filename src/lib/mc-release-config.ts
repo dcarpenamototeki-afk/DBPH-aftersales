@@ -3,6 +3,7 @@ export const mcReleaseConfig = {
   stocksSheet: "MC Stocks In",
   stocksFirstDataRow: 3,
   stocksUnitModelColumn: "H",
+  stocksPnpCsrStatusColumn: "M",
   journalSheet: "MC Journal",
   firstJournalRow: 27,
   journalScanColumns: ["X", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BK"],
@@ -45,6 +46,7 @@ export type MotorcycleMatch = {
   engineNumber: string;
   chassisNumber: string;
   color: string;
+  pnpCsrStatus: string;
 };
 
 export type MotorcycleCatalog = {
