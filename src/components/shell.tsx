@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <NavLink href="/orcr" label="ORCR / Plate Monitoring" icon={FileSpreadsheet} inset />
               <NavLink href="/released" label="Released ORCR / Plate" icon={PackageCheck} inset />
               <NavLink href="/unidentified-plates" label="Unidentified Plates" icon={Radar} inset />
+              <NavLink href="/mc-release" label="BRISTOL MC Release" icon={FileCheck2} inset />
             </div>
           </details>
 
@@ -64,7 +65,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </details>
 
           <div className="mt-2">
-            <NavLink href="/mc-release" label="MC Release Documents" icon={FileCheck2} />
             <NavLink href="/ltms-filler" label="LTMS Form Filler" icon={FileText} />
             <NavLink href="/import" label="Import" icon={Import} />
             <NavLink href="/audit-log" label="Audit Log" icon={History} />
