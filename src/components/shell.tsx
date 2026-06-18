@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ChevronDown, FileSpreadsheet, FileText, History, Import, PackageCheck, Radar, Warehouse } from "lucide-react";
+import { BarChart3, ChevronDown, FileCheck2, FileSpreadsheet, FileText, History, Import, PackageCheck, Radar, Warehouse } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { AuthGate } from "./auth-gate";
@@ -64,11 +64,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </details>
 
           <div className="mt-2">
-  <NavLink href="/ltms-filler" label="LTMS Form Filler" icon={FileText} />
-  <NavLink href="/import" label="Import" icon={Import} />
-  <NavLink href="/audit-log" label="Audit Log" icon={History} />
-  <AccountMenu />
-</div>
+            <NavLink href="/mc-release" label="MC Release Documents" icon={FileCheck2} />
+            <NavLink href="/ltms-filler" label="LTMS Form Filler" icon={FileText} />
+            <NavLink href="/import" label="Import" icon={Import} />
+            <NavLink href="/audit-log" label="Audit Log" icon={History} />
+            <AccountMenu />
+          </div>
           </nav>
         </aside>
         <main className="w-full p-4 lg:ml-64 lg:p-6">{children}</main>
