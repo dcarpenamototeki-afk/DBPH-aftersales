@@ -20,6 +20,17 @@ function escapeSheetName(name: string) {
   return `'${name.replace(/'/g, "''")}'`;
 }
 
+function columnIndex(column: string) {
+  return column
+    .toUpperCase()
+    .split("")
+    .reduce((index, character) => index * 26 + character.charCodeAt(0) - 64, 0) - 1;
+}
+
+function isChecked(value: unknown) {
+  return ["TRUE", "YES", "1"].includes(normalizeSheetValue(value));
+}
+
 function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   const exact = findHeaderIndex(headers, aliases);
   if (exact >= 0) return exact;
@@ -56,16 +67,18 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
   const headers = rows[headerRowIndex];
   const indexes = {
     unitCode: flexibleHeaderIndex(headers, headerAliases.unitCode),
-    unitModel: flexibleHeaderIndex(headers, headerAliases.unitModel),
+    unitModel: columnIndex(mcReleaseConfig.stocksUnitModelColumn),
     engineNumber: flexibleHeaderIndex(headers, headerAliases.engineNumber),
     chassisNumber: flexibleHeaderIndex(headers, headerAliases.chassisNumber),
-    color: flexibleHeaderIndex(headers, headerAliases.color)
+    color: flexibleHeaderIndex(headers, headerAliases.color),
+    released: columnIndex(mcReleaseConfig.stockCheckboxColumn)
   };
   const motorcycles: MotorcycleMatch[] = [];
   const seenUnitCodes = new Set<string>();
 
-  for (let index = headerRowIndex + 1; index < rows.length; index += 1) {
+  for (let index = mcReleaseConfig.stocksFirstDataRow - 1; index < rows.length; index += 1) {
     const row = rows[index];
+    if (isChecked(row[indexes.released])) continue;
     const unitCode = String(row[indexes.unitCode] ?? "").trim();
     const normalizedUnitCode = normalizeSheetValue(unitCode);
     if (!normalizedUnitCode || seenUnitCodes.has(normalizedUnitCode)) continue;
