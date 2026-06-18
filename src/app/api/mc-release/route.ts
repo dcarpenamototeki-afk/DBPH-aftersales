@@ -35,12 +35,14 @@ function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   const exact = findHeaderIndex(headers, aliases);
   if (exact >= 0) return exact;
 
-  const normalizedAliases = aliases.map(normalizeSheetValue);
+  const normalizeHeader = (value: unknown) =>
+    normalizeSheetValue(value).replace(/[^A-Z0-9]+/g, " ").trim();
+  const normalizedAliases = aliases.map(normalizeHeader).filter(Boolean);
   return headers.findIndex((header) => {
-    const value = normalizeSheetValue(header).replace(/[^A-Z0-9]+/g, " ");
+    const value = normalizeHeader(header);
+    if (!value) return false;
     return normalizedAliases.some((alias) => {
-      const normalizedAlias = alias.replace(/[^A-Z0-9]+/g, " ");
-      return value.includes(normalizedAlias) || normalizedAlias.includes(value);
+      return value === alias || value.includes(alias) || alias.includes(value);
     });
   });
 }
