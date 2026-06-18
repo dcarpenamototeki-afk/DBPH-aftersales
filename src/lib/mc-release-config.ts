@@ -1,6 +1,8 @@
 export const mcReleaseConfig = {
   spreadsheetId: "1EGpdZ4itHD0VJLOtP0RTanrUUbcvlICgD0oRNQPND5I",
   stocksSheet: "MC Stocks In",
+  stocksFirstDataRow: 3,
+  stocksUnitModelColumn: "H",
   journalSheet: "MC Journal",
   firstJournalRow: 27,
   journalScanColumns: ["X", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BK"],
