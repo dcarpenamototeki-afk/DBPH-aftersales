@@ -66,6 +66,10 @@ export function McReleasePage() {
 
   const modelMotorcycles = catalog.motorcycles
     .filter((item) => item.unitModel.trim().toUpperCase() === selectedModel.trim().toUpperCase());
+  const normalizedPnpStatus = motor?.pnpCsrStatus.trim().toUpperCase() ?? "";
+  const hasClearance = normalizedPnpStatus === "WITH CLEARANCE";
+  const noClearance = normalizedPnpStatus === "NO CP";
+  const displayedPnpStatus = noClearance ? "NO PNP CLEARANCE" : normalizedPnpStatus || "-";
 
   const clearPdf = useCallback(() => {
     if (pdfRef.current) URL.revokeObjectURL(pdfRef.current);
@@ -187,6 +191,12 @@ export function McReleasePage() {
                 <p><span className="font-semibold">Engine #:</span> {motor.engineNumber || "-"}</p>
                 <p><span className="font-semibold">Chassis #:</span> {motor.chassisNumber || "-"}</p>
                 <p><span className="font-semibold">Color:</span> {motor.color || "-"}</p>
+                <p>
+                  <span className="font-semibold">PNP / CSR Status:</span>{" "}
+                  <strong className={hasClearance ? "text-emerald-700" : noClearance ? "text-red-600" : "text-slate-700"}>
+                    {displayedPnpStatus}
+                  </strong>
+                </p>
               </div>
             ) : null}
           </div>
@@ -211,7 +221,7 @@ export function McReleasePage() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={!motor || generating} onClick={generate} type="button">
+            <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={!motor || !form.amount.trim() || generating} onClick={generate} type="button">
               <FileCheck2 size={16} />
               {generating ? "Saving and generating..." : "Save and Generate PDF"}
             </button>
