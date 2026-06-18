@@ -9,8 +9,8 @@ import type { McReleaseForm, MotorcycleCatalog, MotorcycleMatch } from "@/lib/mc
 export const dynamic = "force-dynamic";
 
 const headerAliases = {
-  unitCode: ["MOTORCYCLE UNIT CODE", "UNIT CODE", "MC UNIT CODE", "ITEM ID"],
-  unitModel: ["UNIT MODEL", "MODEL", "MOTORCYCLE MODEL"],
+  unitCode: ["MOTORCYCLE UNIT CODE", "MOTORCYCLE CODE", "UNIT CODE", "MC UNIT CODE", "MC CODE", "ITEM ID"],
+  unitModel: ["UNIT MODEL", "MODEL", "MOTORCYCLE MODEL", "MC MODEL"],
   engineNumber: ["ENGINE #", "ENGINE NO", "ENGINE NUMBER"],
   chassisNumber: ["CHASSIS #", "CHASSIS NO", "CHASSIS NUMBER"],
   color: ["COLOR", "COLOUR"]
@@ -18,6 +18,20 @@ const headerAliases = {
 
 function escapeSheetName(name: string) {
   return `'${name.replace(/'/g, "''")}'`;
+}
+
+function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
+  const exact = findHeaderIndex(headers, aliases);
+  if (exact >= 0) return exact;
+
+  const normalizedAliases = aliases.map(normalizeSheetValue);
+  return headers.findIndex((header) => {
+    const value = normalizeSheetValue(header).replace(/[^A-Z0-9]+/g, " ");
+    return normalizedAliases.some((alias) => {
+      const normalizedAlias = alias.replace(/[^A-Z0-9]+/g, " ");
+      return value.includes(normalizedAlias) || normalizedAlias.includes(value);
+    });
+  });
 }
 
 async function findMotorcycle(unitCode: string): Promise<MotorcycleMatch | null> {
@@ -32,20 +46,20 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
   const spreadsheetId = getReleaseSpreadsheetId();
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${escapeSheetName(mcReleaseConfig.stocksSheet)}!A:O`
+    range: `${escapeSheetName(mcReleaseConfig.stocksSheet)}!A:BZ`
   });
   const rows = response.data.values ?? [];
   if (!rows.length) return { models: [], motorcycles: [] };
 
-  const headerRowIndex = rows.findIndex((row) => findHeaderIndex(row, headerAliases.unitCode) >= 0);
+  const headerRowIndex = rows.findIndex((row) => flexibleHeaderIndex(row, headerAliases.unitCode) >= 0);
   if (headerRowIndex < 0) throw new Error("Motorcycle Unit Code column was not found in MC Stocks In.");
   const headers = rows[headerRowIndex];
   const indexes = {
-    unitCode: findHeaderIndex(headers, headerAliases.unitCode),
-    unitModel: findHeaderIndex(headers, headerAliases.unitModel),
-    engineNumber: findHeaderIndex(headers, headerAliases.engineNumber),
-    chassisNumber: findHeaderIndex(headers, headerAliases.chassisNumber),
-    color: findHeaderIndex(headers, headerAliases.color)
+    unitCode: flexibleHeaderIndex(headers, headerAliases.unitCode),
+    unitModel: flexibleHeaderIndex(headers, headerAliases.unitModel),
+    engineNumber: flexibleHeaderIndex(headers, headerAliases.engineNumber),
+    chassisNumber: flexibleHeaderIndex(headers, headerAliases.chassisNumber),
+    color: flexibleHeaderIndex(headers, headerAliases.color)
   };
   const motorcycles: MotorcycleMatch[] = [];
   const seenUnitCodes = new Set<string>();
