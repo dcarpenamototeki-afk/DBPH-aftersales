@@ -210,7 +210,8 @@ async function exportCombinedPdf() {
   const accessToken = await auth.getAccessToken();
   const merged = await PDFDocument.create();
 
-  for (const title of mcReleaseConfig.printableSheets) {
+  for (const printable of mcReleaseConfig.printableSheets) {
+    const { title, scale } = printable;
     const gid = sheetIds.get(normalizeSheetValue(title));
     if (gid === undefined || gid === null) throw new Error(`Printable sheet "${title}" was not found.`);
 
@@ -219,7 +220,7 @@ async function exportCombinedPdf() {
       gid: String(gid),
       size: "A4",
       portrait: "true",
-      scale: "4",
+      scale,
       sheetnames: "false",
       printtitle: "false",
       pagenumbers: "false",
