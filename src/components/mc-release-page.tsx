@@ -65,8 +65,7 @@ export function McReleasePage() {
   }
 
   const modelMotorcycles = catalog.motorcycles
-    .filter((item) => item.unitModel.trim().toUpperCase() === selectedModel.trim().toUpperCase())
-    .sort((left, right) => left.unitCode.localeCompare(right.unitCode));
+    .filter((item) => item.unitModel.trim().toUpperCase() === selectedModel.trim().toUpperCase());
 
   const clearPdf = useCallback(() => {
     if (pdfRef.current) URL.revokeObjectURL(pdfRef.current);
@@ -148,7 +147,7 @@ export function McReleasePage() {
 
   return (
     <>
-      <PageHeader title="MC Release Documents">
+      <PageHeader title="BRISTOL MC Release">
         <button className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink" onClick={reset} type="button">
           <X size={16} />
           Exit / Clear
