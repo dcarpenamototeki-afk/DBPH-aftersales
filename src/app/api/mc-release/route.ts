@@ -101,7 +101,7 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
         .filter((motorcycle) => motorcycle.unitModel.trim())
         .map((motorcycle) => [normalizeSheetValue(motorcycle.unitModel), motorcycle.unitModel.trim()])
     ).values()
-  ).sort((left, right) => left.localeCompare(right));
+  );
 
   return { models, motorcycles };
 }
