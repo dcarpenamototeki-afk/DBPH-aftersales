@@ -219,12 +219,18 @@ async function exportCombinedPdf() {
       gid: String(gid),
       size: "A4",
       portrait: "true",
-      fitw: "true",
+      scale: "4",
       sheetnames: "false",
       printtitle: "false",
       pagenumbers: "false",
       gridlines: "false",
-      fzr: "false"
+      fzr: "false",
+      horizontal_alignment: "CENTER",
+      vertical_alignment: "TOP",
+      top_margin: "0.25",
+      bottom_margin: "0.25",
+      left_margin: "0.25",
+      right_margin: "0.25"
     });
     const response = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?${params}`, {
       headers: { Authorization: `Bearer ${accessToken.token}` },
