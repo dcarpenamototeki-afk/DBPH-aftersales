@@ -214,14 +214,14 @@ async function exportCombinedPdf() {
   const merged = await PDFDocument.create();
 
   for (const printable of mcReleaseConfig.printableSheets) {
-    const { title, scale } = printable;
+    const { title, scale, size, margin } = printable;
     const gid = sheetIds.get(normalizeSheetValue(title));
     if (gid === undefined || gid === null) throw new Error(`Printable sheet "${title}" was not found.`);
 
     const params = new URLSearchParams({
       format: "pdf",
       gid: String(gid),
-      size: "A4",
+      size,
       portrait: "true",
       scale,
       sheetnames: "false",
@@ -231,10 +231,10 @@ async function exportCombinedPdf() {
       fzr: "false",
       horizontal_alignment: "CENTER",
       vertical_alignment: "TOP",
-      top_margin: "0.25",
-      bottom_margin: "0.25",
-      left_margin: "0.25",
-      right_margin: "0.25"
+      top_margin: margin,
+      bottom_margin: margin,
+      left_margin: margin,
+      right_margin: margin
     });
     const response = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?${params}`, {
       headers: { Authorization: `Bearer ${accessToken.token}` },
