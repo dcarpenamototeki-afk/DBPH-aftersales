@@ -73,6 +73,7 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
     engineNumber: flexibleHeaderIndex(headers, headerAliases.engineNumber),
     chassisNumber: flexibleHeaderIndex(headers, headerAliases.chassisNumber),
     color: flexibleHeaderIndex(headers, headerAliases.color),
+    pnpCsrStatus: columnIndex(mcReleaseConfig.stocksPnpCsrStatusColumn),
     released: columnIndex(mcReleaseConfig.stockCheckboxColumn)
   };
   const motorcycles: MotorcycleMatch[] = [];
@@ -91,7 +92,8 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
       unitModel: indexes.unitModel >= 0 ? String(row[indexes.unitModel] ?? "") : "",
       engineNumber: indexes.engineNumber >= 0 ? String(row[indexes.engineNumber] ?? "") : "",
       chassisNumber: indexes.chassisNumber >= 0 ? String(row[indexes.chassisNumber] ?? "") : "",
-      color: indexes.color >= 0 ? String(row[indexes.color] ?? "") : ""
+      color: indexes.color >= 0 ? String(row[indexes.color] ?? "") : "",
+      pnpCsrStatus: String(row[indexes.pnpCsrStatus] ?? "").trim()
     });
   }
 
@@ -159,38 +161,39 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
   const journal = escapeSheetName(mcReleaseConfig.journalSheet);
   const stocks = escapeSheetName(mcReleaseConfig.stocksSheet);
   const fixed = mcReleaseConfig.fixedValues;
+  const uppercase = (value: string) => value.trim().toUpperCase();
   const entries: Array<[string, string | boolean]> = [
     [`${stocks}!${mcReleaseConfig.stockCheckboxColumn}${motor.sourceRow}`, true],
     [`${journal}!A${journalRow}`, true],
     [`${journal}!U${journalRow}`, form.releaseDate],
-    [`${journal}!V${journalRow}`, fixed.releaseStatus],
-    [`${journal}!X${journalRow}`, form.unitCode],
-    [`${journal}!AD${journalRow}`, fixed.releasedBy],
+    [`${journal}!V${journalRow}`, uppercase(fixed.releaseStatus)],
+    [`${journal}!X${journalRow}`, uppercase(form.unitCode)],
+    [`${journal}!AD${journalRow}`, uppercase(fixed.releasedBy)],
     [`${journal}!AE${journalRow}`, form.amount],
-    [`${journal}!AF${journalRow}`, fixed.paymentType],
-    [`${journal}!AL${journalRow}`, fixed.notApplicable],
+    [`${journal}!AF${journalRow}`, uppercase(fixed.paymentType)],
+    [`${journal}!AL${journalRow}`, uppercase(fixed.notApplicable)],
     [`${journal}!AP${journalRow}`, true],
     [`${journal}!AQ${journalRow}`, true],
     [`${journal}!AR${journalRow}`, true],
     [`${journal}!AS${journalRow}`, true],
-    [`${journal}!AU${journalRow}`, form.surname],
-    [`${journal}!AV${journalRow}`, form.firstName],
-    [`${journal}!AW${journalRow}`, form.middleName],
+    [`${journal}!AU${journalRow}`, uppercase(form.surname)],
+    [`${journal}!AV${journalRow}`, uppercase(form.firstName)],
+    [`${journal}!AW${journalRow}`, uppercase(form.middleName)],
     [`${journal}!AX${journalRow}`, form.birthday],
-    [`${journal}!AY${journalRow}`, form.cpNumber],
-    [`${journal}!AZ${journalRow}`, form.addressLine],
-    [`${journal}!BA${journalRow}`, form.barangay],
-    [`${journal}!BB${journalRow}`, form.cityTown],
-    [`${journal}!BC${journalRow}`, form.province],
-    [`${journal}!BD${journalRow}`, fixed.notApplicable],
-    [`${journal}!BE${journalRow}`, fixed.notApplicable],
-    [`${journal}!BF${journalRow}`, fixed.branch],
+    [`${journal}!AY${journalRow}`, uppercase(form.cpNumber)],
+    [`${journal}!AZ${journalRow}`, uppercase(form.addressLine)],
+    [`${journal}!BA${journalRow}`, uppercase(form.barangay)],
+    [`${journal}!BB${journalRow}`, uppercase(form.cityTown)],
+    [`${journal}!BC${journalRow}`, uppercase(form.province)],
+    [`${journal}!BD${journalRow}`, uppercase(fixed.notApplicable)],
+    [`${journal}!BE${journalRow}`, uppercase(fixed.notApplicable)],
+    [`${journal}!BF${journalRow}`, uppercase(fixed.branch)],
     [`${journal}!BJ${journalRow}`, form.releaseDate],
     [`${journal}!BK${journalRow}`, form.amount],
-    [`${journal}!BL${journalRow}`, fixed.notApplicable],
+    [`${journal}!BL${journalRow}`, uppercase(fixed.notApplicable)],
     [`${journal}!BM${journalRow}`, true],
     [`${journal}!BV${journalRow}`, true],
-    [`${journal}!BX${journalRow}`, form.waiver],
+    [`${journal}!BX${journalRow}`, uppercase(form.waiver)],
     [`${journal}!BZ${journalRow}`, true]
   ];
 
