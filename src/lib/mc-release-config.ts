@@ -7,7 +7,12 @@ export const mcReleaseConfig = {
   firstJournalRow: 27,
   journalScanColumns: ["X", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BK"],
   stockCheckboxColumn: "O",
-  printableSheets: ["Reg.Form 1", "waiver", "promo", "warranty"],
+  printableSheets: [
+    { title: "Reg.Form 1", scale: "4" },
+    { title: "waiver", scale: "4" },
+    { title: "promo", scale: "4" },
+    { title: "warranty", scale: "2" }
+  ],
   fixedValues: {
     releaseStatus: "Unit Released",
     releasedBy: "SIR ANDREW",
