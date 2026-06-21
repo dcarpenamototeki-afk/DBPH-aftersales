@@ -31,6 +31,17 @@ function isChecked(value: unknown) {
   return ["TRUE", "YES", "1"].includes(normalizeSheetValue(value));
 }
 
+function parseA1Range(range: string) {
+  const match = range.toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+  if (!match) throw new Error(`Invalid printable range: ${range}`);
+  return {
+    c1: columnIndex(match[1]),
+    r1: Number(match[2]) - 1,
+    c2: columnIndex(match[3]) + 1,
+    r2: Number(match[4])
+  };
+}
+
 function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   const exact = findHeaderIndex(headers, aliases);
   if (exact >= 0) return exact;
@@ -236,6 +247,13 @@ async function exportCombinedPdf() {
       left_margin: margin,
       right_margin: margin
     });
+    if ("range" in printable && printable.range) {
+      const bounds = parseA1Range(printable.range);
+      params.set("r1", String(bounds.r1));
+      params.set("c1", String(bounds.c1));
+      params.set("r2", String(bounds.r2));
+      params.set("c2", String(bounds.c2));
+    }
     const response = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?${params}`, {
       headers: { Authorization: `Bearer ${accessToken.token}` },
       cache: "no-store"
@@ -289,10 +307,56 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="MC_Release_${form.unitCode}_${journalRow}.pdf"`,
-        "X-Journal-Row": String(journalRow)
+        "X-Journal-Row": String(journalRow),
+        "X-Stock-Row": String(motor.sourceRow)
       }
     });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Unable to generate release documents.", 500);
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAllowedUser(request);
+  if (auth.error) return auth.error;
+
+  try {
+    const { journalRow, stockRow, unitCode } = (await request.json()) as {
+      journalRow?: number;
+      stockRow?: number;
+      unitCode?: string;
+    };
+    if (!journalRow || journalRow < mcReleaseConfig.firstJournalRow || !stockRow || !unitCode) {
+      return jsonError("Invalid revert request.");
+    }
+
+    const googleAuth = getGoogleAuth();
+    const sheets = google.sheets({ version: "v4", auth: googleAuth });
+    const spreadsheetId = getReleaseSpreadsheetId();
+    const journal = escapeSheetName(mcReleaseConfig.journalSheet);
+    const stocks = escapeSheetName(mcReleaseConfig.stocksSheet);
+    const unitCell = `${journal}!${mcReleaseConfig.journalLookupColumn ?? "X"}${journalRow}`;
+    const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: unitCell });
+    const savedUnitCode = String(response.data.values?.[0]?.[0] ?? "");
+    if (normalizeSheetValue(savedUnitCode) !== normalizeSheetValue(unitCode)) {
+      return jsonError("Revert stopped because the journal row no longer belongs to this Unit Code.", 409);
+    }
+
+    await sheets.spreadsheets.values.batchClear({
+      spreadsheetId,
+      requestBody: {
+        ranges: mcReleaseConfig.journalWrittenColumns.map((column) => `${journal}!${column}${journalRow}`)
+      }
+    });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${stocks}!${mcReleaseConfig.stockCheckboxColumn}${stockRow}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [[false]] }
+    });
+
+    return NextResponse.json({ ok: true, journalRow });
+  } catch (error) {
+    return jsonError(error instanceof Error ? error.message : "Unable to revert the last record.", 500);
   }
 }
