@@ -20,7 +20,7 @@ export const caTemplatePath = "/dreambike-contract-agreement-template.pdf";
 export const caCoordinates = {
   date: { x: 457, y: 795, size: 10, maxWidth: 66 },
   clientName: { x: 99, y: 649, size: 11, maxWidth: 185 },
-  address: { x: 112, y: 635, size: 10, minSize: 6.5, maxWidth: 245 },
+  address: { x: 118, y: 635, size: 10, maxWidth: 235 },
   purchasePrice: { x: 365, y: 580, size: 11, maxWidth: 90 },
   unitDetails: { x: 216, y: 553, size: 11, maxWidth: 210 },
   unitColor: { x: 216, y: 525, size: 11, maxWidth: 210 },
@@ -29,12 +29,6 @@ export const caCoordinates = {
   contactNumber: { x: 216, y: 442, size: 11, maxWidth: 210 },
   sellerName: { x: 87, y: 226, size: 10, maxWidth: 170 },
   buyerName: { x: 339, y: 226, size: 10, maxWidth: 170 },
-  lines: {
-    address: { x1: 112, x2: 358, y: 633.5 },
-    unitDetails: { x1: 216, x2: 430, y: 551.5 },
-    seller: { x1: 87, x2: 257, y: 224.5 },
-    buyer: { x1: 339, x2: 509, y: 224.5 }
-  },
   payments: {
     downpayment: { yesX: 149, noX: 190, amountX: 245, y: 403 },
     bankTransfer: { yesX: 149, noX: 190, amountX: 245, y: 391 },

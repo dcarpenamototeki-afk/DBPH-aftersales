@@ -1,0 +1,24 @@
+1. Upload every file in this package to the same path in the GitHub repository.
+
+2. In Supabase SQL Editor, run:
+   supabase/migrations/008_too_status_records.sql
+
+3. Wait for the Vercel production deployment to reach Ready.
+
+4. Test ToO Status:
+   - Add a test record.
+   - Run Data Check.
+   - Confirm a matched ORCR record leaves ORCR / Plate Monitoring.
+   - Release the ToO record and confirm it appears in Released ORCR / Plate.
+
+5. Test BRISTOL MC Release:
+   - Save and generate one test record.
+   - Click Revert Last Record.
+   - Confirm the MC Journal row is cleared and MC Stocks In column O is unchecked.
+
+6. Test Create C.A:
+   - Fill the form.
+   - Generate and inspect the preview.
+   - Download the PDF.
+
+The C.A text coordinates are stored in src/lib/ca-config.ts.

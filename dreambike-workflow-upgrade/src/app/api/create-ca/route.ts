@@ -12,16 +12,11 @@ function uppercase(value: string) {
   return String(value ?? "").trim().toUpperCase();
 }
 
-function fittedSize(
-  text: string,
-  font: { widthOfTextAtSize(text: string, size: number): number },
-  size: number,
-  maxWidth: number,
-  minSize = 7
-) {
-  let fitted = size;
-  while (fitted > minSize && font.widthOfTextAtSize(text, fitted) > maxWidth) fitted -= 0.25;
-  return fitted;
+function fitText(text: string, font: { widthOfTextAtSize(text: string, size: number): number }, size: number, maxWidth: number) {
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+  let output = text;
+  while (output.length > 1 && font.widthOfTextAtSize(`${output}...`, size) > maxWidth) output = output.slice(0, -1);
+  return `${output.trim()}...`;
 }
 
 function money(value: string) {
@@ -51,43 +46,11 @@ export async function POST(request: NextRequest) {
     const fullName = [form.firstName, form.middleInitial, form.surname].map(uppercase).filter(Boolean).join(" ");
     const date = new Date().toLocaleDateString("en-PH", { month: "2-digit", day: "2-digit", year: "2-digit", timeZone: "Asia/Manila" });
 
-    const draw = (
-      value: string,
-      coordinate: { x: number; y: number; size: number; maxWidth: number; minSize?: number },
-      useBold = false
-    ) => {
+    const draw = (value: string, coordinate: { x: number; y: number; size: number; maxWidth: number }, useBold = false) => {
       const font = useBold ? bold : regular;
-      const text = uppercase(value);
-      const size = fittedSize(text, font, coordinate.size, coordinate.maxWidth, coordinate.minSize);
-      page.drawText(text, { x: coordinate.x, y: coordinate.y, size, font, color });
+      const text = fitText(uppercase(value), font, coordinate.size, coordinate.maxWidth);
+      page.drawText(text, { x: coordinate.x, y: coordinate.y, size: coordinate.size, font, color });
     };
-
-    const drawCentered = (
-      value: string,
-      line: { x1: number; x2: number; y: number },
-      size: number
-    ) => {
-      const text = uppercase(value);
-      const availableWidth = line.x2 - line.x1;
-      const fitted = fittedSize(text, bold, size, availableWidth, 7);
-      const width = bold.widthOfTextAtSize(text, fitted);
-      page.drawText(text, {
-        x: line.x1 + (availableWidth - width) / 2,
-        y: line.y + 1.5,
-        size: fitted,
-        font: bold,
-        color
-      });
-    };
-
-    Object.values(caCoordinates.lines).forEach((line) => {
-      page.drawLine({
-        start: { x: line.x1, y: line.y },
-        end: { x: line.x2, y: line.y },
-        thickness: 0.8,
-        color
-      });
-    });
 
     draw(date, caCoordinates.date);
     draw(fullName, caCoordinates.clientName, true);
@@ -98,8 +61,8 @@ export async function POST(request: NextRequest) {
     draw(form.engineNumber, caCoordinates.engineNumber, true);
     draw(form.chassisNumber, caCoordinates.chassisNumber, true);
     draw(form.contactNumber, caCoordinates.contactNumber, true);
-    drawCentered(form.seller, caCoordinates.lines.seller, caCoordinates.sellerName.size);
-    drawCentered(fullName, caCoordinates.lines.buyer, caCoordinates.buyerName.size);
+    draw(form.seller, caCoordinates.sellerName, true);
+    draw(fullName, caCoordinates.buyerName, true);
 
     paymentKeys.forEach((key) => {
       const payment = form.payments[key] ?? { enabled: false, amount: "" };
