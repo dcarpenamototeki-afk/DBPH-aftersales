@@ -27,6 +27,16 @@ function columnIndex(column: string) {
     .reduce((index, character) => index * 26 + character.charCodeAt(0) - 64, 0) - 1;
 }
 
+function parseA1Range(range: string) {
+  const match = range.toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+  if (!match) throw new Error(`Invalid printable range: ${range}`);
+
+  return {
+    startRow: Number(match[2]) - 1,
+    endRow: Number(match[4])
+  };
+}
+
 function isChecked(value: unknown) {
   return ["TRUE", "YES", "1"].includes(normalizeSheetValue(value));
 }
@@ -223,7 +233,7 @@ async function rollbackRelease(journalRow: number, stockRow: number, unitCode: s
   await sheets.spreadsheets.values.batchClear({
     spreadsheetId,
     requestBody: {
-      ranges: mcReleaseConfig.journalWrittenColumns.map((column) => `${journal}!${column}${journalRow}`)
+      ranges: [`${journal}!A${journalRow}:BZ${journalRow}`]
     }
   });
   await sheets.spreadsheets.values.update({
@@ -236,46 +246,130 @@ async function rollbackRelease(journalRow: number, stockRow: number, unitCode: s
 
 async function exportCombinedPdf() {
   const auth = getGoogleAuth();
+  const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
   const sheetIds = await getSheetIds();
   const accessToken = await auth.getAccessToken();
   const merged = await PDFDocument.create();
 
-  for (const printable of mcReleaseConfig.printableSheets) {
+  for (let printableIndex = 0; printableIndex < mcReleaseConfig.printableSheets.length; printableIndex += 1) {
+    const printable = mcReleaseConfig.printableSheets[printableIndex];
     const { title, scale, size, margin } = printable;
-    const gid = sheetIds.get(normalizeSheetValue(title));
-    if (gid === undefined || gid === null) throw new Error(`Printable sheet "${title}" was not found.`);
-
-    const params = new URLSearchParams({
-      format: "pdf",
-      gid: String(gid),
-      size,
-      portrait: "true",
-      scale,
-      sheetnames: "false",
-      printtitle: "false",
-      pagenumbers: "false",
-      gridlines: "false",
-      fzr: "false",
-      horizontal_alignment: "CENTER",
-      vertical_alignment: "TOP",
-      top_margin: margin,
-      bottom_margin: margin,
-      left_margin: margin,
-      right_margin: margin
-    });
-    const response = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?${params}`, {
-      headers: { Authorization: `Bearer ${accessToken.token}` },
-      cache: "no-store"
-    });
-    if (!response.ok) {
-      const detail = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 180);
-      throw new Error(`Unable to export "${title}" as PDF.${detail ? ` ${detail}` : ""}`);
+    const sourceSheetId = sheetIds.get(normalizeSheetValue(title));
+    if (sourceSheetId === undefined || sourceSheetId === null) {
+      throw new Error(`Printable sheet "${title}" was not found.`);
     }
 
-    const source = await PDFDocument.load(await response.arrayBuffer());
-    const pages = await merged.copyPages(source, source.getPageIndices());
-    pages.forEach((page) => merged.addPage(page));
+    let gid = sourceSheetId;
+    let temporarySheetId: number | null = null;
+
+    if ("range" in printable && printable.range) {
+      const bounds = parseA1Range(printable.range);
+      const duplicate = await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{
+            duplicateSheet: {
+              sourceSheetId,
+              newSheetName: `__PRINT_${Date.now()}_${printableIndex}`
+            }
+          }]
+        }
+      });
+      const properties = duplicate.data.replies?.[0]?.duplicateSheet?.properties;
+      temporarySheetId = properties?.sheetId ?? null;
+      const rowCount = properties?.gridProperties?.rowCount ?? bounds.endRow;
+      if (temporarySheetId === null) throw new Error(`Unable to prepare printable sheet "${title}".`);
+      gid = temporarySheetId;
+
+      const requests: Array<Record<string, unknown>> = [{
+        updateDimensionProperties: {
+          range: {
+            sheetId: temporarySheetId,
+            dimension: "ROWS",
+            startIndex: 0,
+            endIndex: rowCount
+          },
+          properties: { hiddenByUser: false },
+          fields: "hiddenByUser"
+        }
+      }];
+      if (bounds.startRow > 0) {
+        requests.push({
+          updateDimensionProperties: {
+            range: {
+              sheetId: temporarySheetId,
+              dimension: "ROWS",
+              startIndex: 0,
+              endIndex: bounds.startRow
+            },
+            properties: { hiddenByUser: true },
+            fields: "hiddenByUser"
+          }
+        });
+      }
+      if (bounds.endRow < rowCount) {
+        requests.push({
+          updateDimensionProperties: {
+            range: {
+              sheetId: temporarySheetId,
+              dimension: "ROWS",
+              startIndex: bounds.endRow,
+              endIndex: rowCount
+            },
+            properties: { hiddenByUser: true },
+            fields: "hiddenByUser"
+          }
+        });
+      }
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests }
+      });
+    }
+
+    try {
+      const params = new URLSearchParams({
+        format: "pdf",
+        gid: String(gid),
+        size,
+        portrait: "true",
+        scale,
+        sheetnames: "false",
+        printtitle: "false",
+        pagenumbers: "false",
+        gridlines: "false",
+        fzr: "false",
+        horizontal_alignment: "CENTER",
+        vertical_alignment: "TOP",
+        top_margin: margin,
+        bottom_margin: margin,
+        left_margin: margin,
+        right_margin: margin
+      });
+      const response = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?${params}`, {
+        headers: { Authorization: `Bearer ${accessToken.token}` },
+        cache: "no-store"
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.ok || !contentType.includes("application/pdf")) {
+        const detail = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 180);
+        throw new Error(`Unable to export "${title}" as PDF.${detail ? ` ${detail}` : ""}`);
+      }
+
+      const source = await PDFDocument.load(await response.arrayBuffer());
+      const pages = await merged.copyPages(source, source.getPageIndices());
+      pages.forEach((page) => merged.addPage(page));
+    } finally {
+      if (temporarySheetId !== null) {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{ deleteSheet: { sheetId: temporarySheetId } }]
+          }
+        });
+      }
+    }
   }
 
   return merged.save();

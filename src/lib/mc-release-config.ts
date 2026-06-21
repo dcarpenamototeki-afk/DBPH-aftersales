@@ -18,7 +18,9 @@ export const mcReleaseConfig = {
     { title: "Reg.Form 1", scale: "4", size: "A4", margin: "0.25" },
     { title: "waiver", scale: "4", size: "A4", margin: "0.25" },
     { title: "promo", scale: "4", size: "A4", margin: "0.25" },
-    { title: "warranty", scale: "2", size: "LETTER", margin: "0.10" }
+    { title: "warranty", range: "A1:AW54", scale: "4", size: "LETTER", margin: "0.10" },
+    { title: "warranty", range: "A56:AW111", scale: "4", size: "LETTER", margin: "0.10" },
+    { title: "warranty", range: "A112:AW166", scale: "4", size: "LETTER", margin: "0.10" }
   ],
   fixedValues: {
     releaseStatus: "Unit Released",
