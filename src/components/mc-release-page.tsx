@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, FileCheck2, RefreshCw, X } from "lucide-react";
+import { Download, FileCheck2, RefreshCw, Undo2, X } from "lucide-react";
 import type { McReleaseForm, MotorcycleCatalog, MotorcycleMatch } from "@/lib/mc-release-config";
 import { PageHeader } from "./page-header";
 
@@ -47,6 +47,7 @@ export function McReleasePage() {
   const [generating, setGenerating] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [pdfName, setPdfName] = useState("MC_Release_Documents.pdf");
+  const [lastSaved, setLastSaved] = useState<{ journalRow: number; stockRow: number; unitCode: string } | null>(null);
   const pdfRef = useRef("");
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export function McReleasePage() {
     setForm({ ...initialForm, releaseDate: new Date().toISOString().slice(0, 10) });
     setSelectedModel("");
     setMotor(null);
+    setLastSaved(null);
     setMessage("");
   }
 
@@ -145,7 +147,31 @@ export function McReleasePage() {
     const match = disposition.match(/filename="([^"]+)"/);
     setPdfName(match?.[1] ?? "MC_Release_Documents.pdf");
     setPdfUrl(URL.createObjectURL(blob));
-    setMessage(`Saved to MC Journal row ${response.headers.get("x-journal-row") ?? ""}. PDF is ready.`);
+    const journalRow = Number(response.headers.get("x-journal-row"));
+    const stockRow = Number(response.headers.get("x-stock-row"));
+    setLastSaved({ journalRow, stockRow, unitCode: form.unitCode });
+    setMessage(`Saved to MC Journal row ${journalRow || ""}. PDF is ready.`);
+    setGenerating(false);
+  }
+
+  async function revertLastRecord() {
+    if (!lastSaved) return;
+    setGenerating(true);
+    const response = await fetch("/api/mc-release", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(lastSaved)
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      setMessage(body.error ?? "Unable to revert the last record.");
+      setGenerating(false);
+      return;
+    }
+    clearPdf();
+    setLastSaved(null);
+    await loadCatalog();
+    setMessage(`MC Journal row ${body.journalRow} was cleared and the stock unit is available again.`);
     setGenerating(false);
   }
 
@@ -230,6 +256,12 @@ export function McReleasePage() {
                 <Download size={16} />
                 Download Combined PDF
               </a>
+            ) : null}
+            {lastSaved ? (
+              <button className="inline-flex items-center gap-2 rounded-md border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 disabled:opacity-50" disabled={generating} onClick={revertLastRecord} type="button">
+                <Undo2 size={16} />
+                Revert Last Record
+              </button>
             ) : null}
           </div>
         </section>

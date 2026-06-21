@@ -80,6 +80,26 @@ export type UnidentifiedPlateRecord = {
   updated_at: string;
 };
 
+export type TooStatusRecord = {
+  id: string;
+  origin: "SWAP UNIT" | "PERSONAL BIKE" | "SINSKI" | "SB FINANCE";
+  first_owner_name: string;
+  new_owner_name: string;
+  motorcycle_unit_type: string;
+  color: string;
+  engine_number: string;
+  chassis_number: string;
+  plate_number: string;
+  date_received: string | null;
+  data_check_status: "NOT CHECKED" | "NO MATCH" | "MATCHED & MOVED";
+  matched_orcr_record_id: string | null;
+  status: "IN PROCESS" | "RELEASED";
+  release_date: string | null;
+  remarks: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ModuleKey = "orcr" | "sales" | "inventory" | "unidentifiedPlates";
 
 export type ColumnDef<T> = {

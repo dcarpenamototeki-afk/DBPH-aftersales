@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ChevronDown, FileCheck2, FileSpreadsheet, FileText, History, Import, PackageCheck, Radar, Warehouse } from "lucide-react";
+import { BarChart3, ChevronDown, FileCheck2, FileSignature, FileSpreadsheet, FileText, History, Import, PackageCheck, Radar, RefreshCcw, Warehouse } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { AuthGate } from "./auth-gate";
@@ -49,7 +49,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <NavLink href="/orcr" label="ORCR / Plate Monitoring" icon={FileSpreadsheet} inset />
               <NavLink href="/released" label="Released ORCR / Plate" icon={PackageCheck} inset />
               <NavLink href="/unidentified-plates" label="Unidentified Plates" icon={Radar} inset />
+              <NavLink href="/too-status" label="ToO Status" icon={RefreshCcw} inset />
               <NavLink href="/mc-release" label="BRISTOL MC Release" icon={FileCheck2} inset />
+              <NavLink href="/create-ca" label="Create C.A" icon={FileSignature} inset />
             </div>
           </details>
 

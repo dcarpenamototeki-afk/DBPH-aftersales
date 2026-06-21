@@ -6,7 +6,13 @@ export const mcReleaseConfig = {
   stocksPnpCsrStatusColumn: "M",
   journalSheet: "MC Journal",
   firstJournalRow: 27,
+  journalLookupColumn: "X",
   journalScanColumns: ["X", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BK"],
+  journalWrittenColumns: [
+    "A", "U", "V", "X", "AD", "AE", "AF", "AL", "AP", "AQ", "AR", "AS",
+    "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BD", "BE", "BF",
+    "BJ", "BK", "BL", "BM", "BV", "BX", "BZ"
+  ],
   stockCheckboxColumn: "O",
   printableSheets: [
     { title: "Reg.Form 1", scale: "4", size: "A4", margin: "0.25" },
