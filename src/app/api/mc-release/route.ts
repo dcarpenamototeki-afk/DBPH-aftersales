@@ -282,50 +282,37 @@ async function exportCombinedPdf() {
       if (temporarySheetId === null) throw new Error(`Unable to prepare printable sheet "${title}".`);
       gid = temporarySheetId;
 
-      const requests: Array<Record<string, unknown>> = [{
-        updateDimensionProperties: {
-          range: {
-            sheetId: temporarySheetId,
-            dimension: "ROWS",
-            startIndex: 0,
-            endIndex: rowCount
-          },
-          properties: { hiddenByUser: false },
-          fields: "hiddenByUser"
-        }
-      }];
-      if (bounds.startRow > 0) {
-        requests.push({
-          updateDimensionProperties: {
-            range: {
-              sheetId: temporarySheetId,
-              dimension: "ROWS",
-              startIndex: 0,
-              endIndex: bounds.startRow
-            },
-            properties: { hiddenByUser: true },
-            fields: "hiddenByUser"
-          }
-        });
-      }
+      const requests: Array<Record<string, unknown>> = [];
       if (bounds.endRow < rowCount) {
         requests.push({
-          updateDimensionProperties: {
+          deleteDimension: {
             range: {
               sheetId: temporarySheetId,
               dimension: "ROWS",
               startIndex: bounds.endRow,
               endIndex: rowCount
-            },
-            properties: { hiddenByUser: true },
-            fields: "hiddenByUser"
+            }
           }
         });
       }
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: { requests }
-      });
+      if (bounds.startRow > 0) {
+        requests.push({
+          deleteDimension: {
+            range: {
+              sheetId: temporarySheetId,
+              dimension: "ROWS",
+              startIndex: 0,
+              endIndex: bounds.startRow
+            }
+          }
+        });
+      }
+      if (requests.length) {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: { requests }
+        });
+      }
     }
 
     try {
