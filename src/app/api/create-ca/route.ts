@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const form = (await request.json()) as CaForm;
-    const required = ["surname", "firstName", "completeAddress", "unitColor", "engineNumber", "contactNumber", "seller"] as const;
+    const required = ["surname", "firstName", "completeAddress", "agreedPrice", "unitDetails", "unitColor", "engineNumber", "chassisNumber", "contactNumber", "seller"] as const;
     const missing = required.find((key) => !uppercase(form[key]));
     if (missing) return jsonError(`${missing} is required.`);
     const paymentKeys = Object.keys(caCoordinates.payments) as CaPaymentKey[];
@@ -55,17 +55,14 @@ export async function POST(request: NextRequest) {
     draw(date, caCoordinates.date);
     draw(fullName, caCoordinates.clientName, true);
     draw(form.completeAddress, caCoordinates.address);
+    draw(money(form.agreedPrice), caCoordinates.purchasePrice, true);
+    draw(form.unitDetails, caCoordinates.unitDetails, true);
     draw(form.unitColor, caCoordinates.unitColor, true);
     draw(form.engineNumber, caCoordinates.engineNumber, true);
+    draw(form.chassisNumber, caCoordinates.chassisNumber, true);
     draw(form.contactNumber, caCoordinates.contactNumber, true);
     draw(form.seller, caCoordinates.sellerName, true);
     draw(fullName, caCoordinates.buyerName, true);
-
-    const total = paymentKeys.reduce((sum, key) => {
-      const payment = form.payments[key];
-      return sum + (payment?.enabled ? Number(String(payment.amount ?? "").replace(/,/g, "")) || 0 : 0);
-    }, 0);
-    draw(total ? total.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", caCoordinates.purchasePrice, true);
 
     paymentKeys.forEach((key) => {
       const payment = form.payments[key] ?? { enabled: false, amount: "" };
