@@ -137,6 +137,13 @@ export function McReleasePage() {
     });
     if (!response.ok) {
       const body = await response.json();
+      if (body.saved && body.journalRow && body.stockRow && body.unitCode) {
+        setLastSaved({
+          journalRow: Number(body.journalRow),
+          stockRow: Number(body.stockRow),
+          unitCode: String(body.unitCode)
+        });
+      }
       setMessage(body.error ?? "Unable to generate documents.");
       setGenerating(false);
       return;

@@ -27,18 +27,6 @@ function columnIndex(column: string) {
     .reduce((index, character) => index * 26 + character.charCodeAt(0) - 64, 0) - 1;
 }
 
-function parseA1Range(range: string) {
-  const match = range.toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
-  if (!match) throw new Error(`Invalid printable range: ${range}`);
-
-  return {
-    c1: columnIndex(match[1]),
-    r1: Number(match[2]) - 1,
-    c2: columnIndex(match[3]) + 1,
-    r2: Number(match[4])
-  };
-}
-
 function isChecked(value: unknown) {
   return ["TRUE", "YES", "1"].includes(normalizeSheetValue(value));
 }
@@ -276,14 +264,6 @@ async function exportCombinedPdf() {
       left_margin: margin,
       right_margin: margin
     });
-    if ("range" in printable && printable.range) {
-      const bounds = parseA1Range(printable.range);
-      params.set("single", "true");
-      params.set("r1", String(bounds.r1));
-      params.set("c1", String(bounds.c1));
-      params.set("r2", String(bounds.r2));
-      params.set("c2", String(bounds.c2));
-    }
     const response = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?${params}`, {
       headers: { Authorization: `Bearer ${accessToken.token}` },
       cache: "no-store"
@@ -334,7 +314,21 @@ export async function POST(request: NextRequest) {
     }
     await writeRelease(form, motor, journalRow);
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    const pdf = await exportCombinedPdf();
+    let pdf: Uint8Array;
+    try {
+      pdf = await exportCombinedPdf();
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: error instanceof Error ? error.message : "Unable to generate release documents.",
+          saved: true,
+          journalRow,
+          stockRow: motor.sourceRow,
+          unitCode: form.unitCode
+        },
+        { status: 502 }
+      );
+    }
 
     return new NextResponse(Buffer.from(pdf), {
       headers: {
