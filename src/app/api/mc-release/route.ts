@@ -233,7 +233,9 @@ async function rollbackRelease(journalRow: number, stockRow: number, unitCode: s
   await sheets.spreadsheets.values.batchClear({
     spreadsheetId,
     requestBody: {
-      ranges: [`${journal}!A${journalRow}:BZ${journalRow}`]
+      ranges: mcReleaseConfig.journalWrittenColumns.map(
+        (column) => `${journal}!${column}${journalRow}`
+      )
     }
   });
   await sheets.spreadsheets.values.update({
