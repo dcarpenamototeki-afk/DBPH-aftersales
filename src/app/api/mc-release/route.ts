@@ -31,17 +31,6 @@ function isChecked(value: unknown) {
   return ["TRUE", "YES", "1"].includes(normalizeSheetValue(value));
 }
 
-function parseA1Range(range: string) {
-  const match = range.toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
-  if (!match) throw new Error(`Invalid printable range: ${range}`);
-  return {
-    c1: columnIndex(match[1]),
-    r1: Number(match[2]) - 1,
-    c2: columnIndex(match[3]) + 1,
-    r2: Number(match[4])
-  };
-}
-
 function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   const exact = findHeaderIndex(headers, aliases);
   if (exact >= 0) return exact;
@@ -217,6 +206,34 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
   });
 }
 
+async function rollbackRelease(journalRow: number, stockRow: number, unitCode: string) {
+  const auth = getGoogleAuth();
+  const sheets = google.sheets({ version: "v4", auth });
+  const spreadsheetId = getReleaseSpreadsheetId();
+  const journal = escapeSheetName(mcReleaseConfig.journalSheet);
+  const stocks = escapeSheetName(mcReleaseConfig.stocksSheet);
+  const unitCell = `${journal}!${mcReleaseConfig.journalLookupColumn}${journalRow}`;
+  const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: unitCell });
+  const savedUnitCode = String(response.data.values?.[0]?.[0] ?? "");
+
+  if (normalizeSheetValue(savedUnitCode) !== normalizeSheetValue(unitCode)) {
+    throw new Error("Rollback stopped because the journal row no longer belongs to this Unit Code.");
+  }
+
+  await sheets.spreadsheets.values.batchClear({
+    spreadsheetId,
+    requestBody: {
+      ranges: mcReleaseConfig.journalWrittenColumns.map((column) => `${journal}!${column}${journalRow}`)
+    }
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${stocks}!${mcReleaseConfig.stockCheckboxColumn}${stockRow}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [[false]] }
+  });
+}
+
 async function exportCombinedPdf() {
   const auth = getGoogleAuth();
   const spreadsheetId = getReleaseSpreadsheetId();
@@ -248,17 +265,17 @@ async function exportCombinedPdf() {
       right_margin: margin
     });
     if ("range" in printable && printable.range) {
-      const bounds = parseA1Range(printable.range);
-      params.set("r1", String(bounds.r1));
-      params.set("c1", String(bounds.c1));
-      params.set("r2", String(bounds.r2));
-      params.set("c2", String(bounds.c2));
+      params.set("single", "true");
+      params.set("range", printable.range);
     }
     const response = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?${params}`, {
       headers: { Authorization: `Bearer ${accessToken.token}` },
       cache: "no-store"
     });
-    if (!response.ok) throw new Error(`Unable to export "${title}" as PDF.`);
+    if (!response.ok) {
+      const detail = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 180);
+      throw new Error(`Unable to export "${title}" as PDF.${detail ? ` ${detail}` : ""}`);
+    }
 
     const source = await PDFDocument.load(await response.arrayBuffer());
     const pages = await merged.copyPages(source, source.getPageIndices());
@@ -301,7 +318,20 @@ export async function POST(request: NextRequest) {
     }
     await writeRelease(form, motor, journalRow);
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    const pdf = await exportCombinedPdf();
+    let pdf: Uint8Array;
+    try {
+      pdf = await exportCombinedPdf();
+    } catch (error) {
+      try {
+        await rollbackRelease(journalRow, motor.sourceRow, form.unitCode);
+      } catch (rollbackError) {
+        const exportMessage = error instanceof Error ? error.message : "PDF generation failed.";
+        const rollbackMessage = rollbackError instanceof Error ? rollbackError.message : "Automatic rollback failed.";
+        throw new Error(`${exportMessage} ${rollbackMessage}`);
+      }
+      const exportMessage = error instanceof Error ? error.message : "PDF generation failed.";
+      throw new Error(`${exportMessage} The saved Sheet entry was automatically reverted.`);
+    }
 
     return new NextResponse(Buffer.from(pdf), {
       headers: {
@@ -330,30 +360,7 @@ export async function DELETE(request: NextRequest) {
       return jsonError("Invalid revert request.");
     }
 
-    const googleAuth = getGoogleAuth();
-    const sheets = google.sheets({ version: "v4", auth: googleAuth });
-    const spreadsheetId = getReleaseSpreadsheetId();
-    const journal = escapeSheetName(mcReleaseConfig.journalSheet);
-    const stocks = escapeSheetName(mcReleaseConfig.stocksSheet);
-    const unitCell = `${journal}!${mcReleaseConfig.journalLookupColumn ?? "X"}${journalRow}`;
-    const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: unitCell });
-    const savedUnitCode = String(response.data.values?.[0]?.[0] ?? "");
-    if (normalizeSheetValue(savedUnitCode) !== normalizeSheetValue(unitCode)) {
-      return jsonError("Revert stopped because the journal row no longer belongs to this Unit Code.", 409);
-    }
-
-    await sheets.spreadsheets.values.batchClear({
-      spreadsheetId,
-      requestBody: {
-        ranges: mcReleaseConfig.journalWrittenColumns.map((column) => `${journal}!${column}${journalRow}`)
-      }
-    });
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${stocks}!${mcReleaseConfig.stockCheckboxColumn}${stockRow}`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [[false]] }
-    });
+    await rollbackRelease(journalRow, stockRow, unitCode);
 
     return NextResponse.json({ ok: true, journalRow });
   } catch (error) {
