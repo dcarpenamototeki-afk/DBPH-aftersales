@@ -18,7 +18,7 @@ export type CaForm = {
 export const caTemplatePath = "/dreambike-contract-agreement-template.pdf";
 
 export const caCoordinates = {
-  date: { x: 457, y: 795, size: 10, maxWidth: 66 },
+  date: { x: 457, y: 795, size: 10, maxWidth: 88 },
   clientName: { x: 99, y: 649, size: 11, maxWidth: 185 },
   address: { x: 112, y: 635, size: 10, minSize: 6.5, maxWidth: 245 },
   purchasePrice: { x: 365, y: 580, size: 11, maxWidth: 90 },

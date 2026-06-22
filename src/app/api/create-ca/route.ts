@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
 import { jsonError, requireAllowedUser } from "@/lib/api";
 import { caCoordinates } from "@/lib/ca-config";
 import type { CaForm, CaPaymentKey } from "@/lib/ca-config";
@@ -29,6 +29,40 @@ function money(value: string) {
   return Number.isFinite(numeric) && numeric ? numeric.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 }
 
+type RichSegment = {
+  text: string;
+  font: PDFFont;
+  underline?: boolean;
+};
+
+function richLines(segments: RichSegment[], size: number, maxWidth: number) {
+  const tokens = segments.flatMap((segment) =>
+    segment.text
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((text) => ({ ...segment, text }))
+  );
+  const lines: Array<Array<RichSegment & { drawText: string }>> = [[]];
+  let lineWidth = 0;
+
+  tokens.forEach((token) => {
+    const currentLine = lines[lines.length - 1];
+    const prefix = currentLine.length && !/^[,.;:)]/.test(token.text) ? " " : "";
+    const drawText = `${prefix}${token.text}`;
+    const width = token.font.widthOfTextAtSize(drawText, size);
+
+    if (currentLine.length && lineWidth + width > maxWidth) {
+      lines.push([{ ...token, drawText: token.text }]);
+      lineWidth = token.font.widthOfTextAtSize(token.text, size);
+    } else {
+      currentLine.push({ ...token, drawText });
+      lineWidth += width;
+    }
+  });
+
+  return lines;
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireAllowedUser(request);
   if (auth.error) return auth.error;
@@ -49,7 +83,9 @@ export async function POST(request: NextRequest) {
     const bold = await document.embedFont(StandardFonts.HelveticaBold);
     const color = rgb(0.02, 0.08, 0.18);
     const fullName = [form.firstName, form.middleInitial, form.surname].map(uppercase).filter(Boolean).join(" ");
-    const date = new Date().toLocaleDateString("en-PH", { month: "2-digit", day: "2-digit", year: "2-digit", timeZone: "Asia/Manila" });
+    const date = new Date()
+      .toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "Asia/Manila" })
+      .toUpperCase();
 
     const draw = (
       value: string,
@@ -80,6 +116,54 @@ export async function POST(request: NextRequest) {
       });
     };
 
+    const drawVendeeParagraph = () => {
+      const segments: RichSegment[] = [
+        { text: "and", font: regular },
+        { text: fullName, font: bold, underline: true },
+        { text: ", of legal age, Filipino citizen, with residence and postal address at", font: regular },
+        { text: uppercase(form.completeAddress), font: regular, underline: true },
+        { text: "herein after referred to as", font: regular },
+        { text: "\"VENDEE\"", font: bold }
+      ];
+      const maxWidth = 490;
+      let size = 10;
+      let lines = richLines(segments, size, maxWidth);
+      while (lines.length > 4 && size > 7.5) {
+        size -= 0.25;
+        lines = richLines(segments, size, maxWidth);
+      }
+
+      page.drawRectangle({
+        x: 50,
+        y: 608,
+        width: 500,
+        height: 62,
+        color: rgb(1, 1, 1)
+      });
+
+      const lineHeight = size + 3;
+      lines.forEach((line, lineIndex) => {
+        const lineWidth = line.reduce((total, token) => total + token.font.widthOfTextAtSize(token.drawText, size), 0);
+        let x = lineIndex === 0 ? 73 : 53;
+        if (lineIndex === 0) x += Math.max(0, (450 - lineWidth) / 2);
+        const y = 654 - lineIndex * lineHeight;
+
+        line.forEach((token) => {
+          const width = token.font.widthOfTextAtSize(token.drawText, size);
+          page.drawText(token.drawText, { x, y, size, font: token.font, color });
+          if (token.underline) {
+            page.drawLine({
+              start: { x: x + (token.drawText.startsWith(" ") ? token.font.widthOfTextAtSize(" ", size) : 0), y: y - 1 },
+              end: { x: x + width, y: y - 1 },
+              thickness: 0.55,
+              color
+            });
+          }
+          x += width;
+        });
+      });
+    };
+
     Object.values(caCoordinates.lines).forEach((line) => {
       page.drawLine({
         start: { x: line.x1, y: line.y },
@@ -90,8 +174,7 @@ export async function POST(request: NextRequest) {
     });
 
     draw(date, caCoordinates.date);
-    draw(fullName, caCoordinates.clientName, true);
-    draw(form.completeAddress, caCoordinates.address);
+    drawVendeeParagraph();
     draw(money(form.agreedPrice), caCoordinates.purchasePrice, true);
     draw(form.unitDetails, caCoordinates.unitDetails, true);
     draw(form.unitColor, caCoordinates.unitColor, true);
