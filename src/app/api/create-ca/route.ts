@@ -29,10 +29,16 @@ function money(value: string) {
   return Number.isFinite(numeric) && numeric ? numeric.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 }
 
+function middleInitial(value: string) {
+  const cleaned = uppercase(value).replace(/\./g, "");
+  return cleaned ? `${cleaned}.` : "";
+}
+
 type RichSegment = {
   text: string;
   font: PDFFont;
   underline?: boolean;
+  wideSpacing?: boolean;
 };
 
 function richLines(segments: RichSegment[], size: number, maxWidth: number) {
@@ -47,7 +53,7 @@ function richLines(segments: RichSegment[], size: number, maxWidth: number) {
 
   tokens.forEach((token) => {
     const currentLine = lines[lines.length - 1];
-    const prefix = currentLine.length && !/^[,.;:)]/.test(token.text) ? " " : "";
+    const prefix = currentLine.length && !/^[,.;:)]/.test(token.text) ? (token.wideSpacing ? "  " : " ") : "";
     const drawText = `${prefix}${token.text}`;
     const width = token.font.widthOfTextAtSize(drawText, size);
 
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
     const regular = await document.embedFont(StandardFonts.Helvetica);
     const bold = await document.embedFont(StandardFonts.HelveticaBold);
     const color = rgb(0.02, 0.08, 0.18);
-    const fullName = [form.firstName, form.middleInitial, form.surname].map(uppercase).filter(Boolean).join(" ");
+    const fullName = [uppercase(form.firstName), middleInitial(form.middleInitial), uppercase(form.surname)].filter(Boolean).join("  ");
     const date = new Date()
       .toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "Asia/Manila" })
       .toUpperCase();
@@ -119,7 +125,7 @@ export async function POST(request: NextRequest) {
     const drawVendeeParagraph = () => {
       const segments: RichSegment[] = [
         { text: "and", font: regular },
-        { text: fullName, font: bold, underline: true },
+        { text: fullName, font: bold, underline: true, wideSpacing: true },
         { text: ", of legal age, Filipino citizen, with residence and postal address at", font: regular },
         { text: uppercase(form.completeAddress), font: regular, underline: true },
         { text: "herein after referred to as", font: regular },
@@ -134,10 +140,10 @@ export async function POST(request: NextRequest) {
       }
 
       page.drawRectangle({
-        x: 50,
-        y: 608,
-        width: 500,
-        height: 62,
+        x: 42,
+        y: 596,
+        width: 510,
+        height: 82,
         color: rgb(1, 1, 1)
       });
 
@@ -187,6 +193,28 @@ export async function POST(request: NextRequest) {
     paymentKeys.forEach((key) => {
       const payment = form.payments[key] ?? { enabled: false, amount: "" };
       const coordinate = caCoordinates.payments[key];
+
+      page.drawRectangle({
+        x: 211,
+        y: coordinate.y - 2,
+        width: 135,
+        height: 11,
+        color: rgb(1, 1, 1)
+      });
+      page.drawText("PHP.", {
+        x: 215,
+        y: coordinate.y,
+        size: 8,
+        font: regular,
+        color
+      });
+      page.drawLine({
+        start: { x: 242, y: coordinate.y - 0.5 },
+        end: { x: 342, y: coordinate.y - 0.5 },
+        thickness: 0.65,
+        color
+      });
+
       page.drawText("X", {
         x: payment.enabled ? coordinate.yesX : coordinate.noX,
         y: coordinate.y,

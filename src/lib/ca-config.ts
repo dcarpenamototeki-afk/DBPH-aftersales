@@ -1,4 +1,4 @@
-export type CaPaymentKey = "downpayment" | "bankTransfer" | "tooReg" | "cash";
+export type CaPaymentKey = "downpayment" | "reservation" | "bankTransfer" | "cash";
 
 export type CaForm = {
   surname: string;
@@ -36,9 +36,9 @@ export const caCoordinates = {
     buyer: { x1: 339, x2: 509, y: 224.5 }
   },
   payments: {
-    downpayment: { yesX: 149, noX: 190, amountX: 245, y: 403 },
-    bankTransfer: { yesX: 149, noX: 190, amountX: 245, y: 391 },
-    tooReg: { yesX: 149, noX: 190, amountX: 245, y: 380 },
-    cash: { yesX: 149, noX: 190, amountX: 245, y: 368 }
+    downpayment: { yesX: 149, noX: 190, amountX: 250, y: 403 },
+    reservation: { yesX: 149, noX: 190, amountX: 250, y: 391 },
+    bankTransfer: { yesX: 149, noX: 190, amountX: 250, y: 380 },
+    cash: { yesX: 149, noX: 190, amountX: 250, y: 368 }
   }
 } as const;

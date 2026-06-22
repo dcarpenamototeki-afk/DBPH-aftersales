@@ -19,16 +19,16 @@ const emptyForm: CaForm = {
   seller: "",
   payments: {
     downpayment: { enabled: false, amount: "" },
+    reservation: { enabled: false, amount: "" },
     bankTransfer: { enabled: false, amount: "" },
-    tooReg: { enabled: false, amount: "" },
     cash: { enabled: false, amount: "" }
   }
 };
 
 const payments: Array<{ key: CaPaymentKey; label: string }> = [
   { key: "downpayment", label: "Downpayment" },
+  { key: "reservation", label: "Reservation" },
   { key: "bankTransfer", label: "EWB / Bank Transfer" },
-  { key: "tooReg", label: "TOO / REG" },
   { key: "cash", label: "Cash" }
 ];
 
