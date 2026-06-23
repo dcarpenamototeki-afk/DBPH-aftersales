@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { jsonError, requireAllowedUser } from "@/lib/api";
 import { getGoogleAuth } from "@/lib/google-sheets";
-import { caPaymentKeys, caTemplateDocumentId } from "@/lib/ca-config";
-import type { CaForm } from "@/lib/ca-config";
+import type { CaForm, CaPaymentKey } from "@/lib/ca-config";
 
 export const dynamic = "force-dynamic";
+
+const caTemplateDocumentId = "159LvMzWs_8z6eQzbZ9tN7nO3Cti-peLIl4lsg7bgYmU";
+const caPaymentKeys: CaPaymentKey[] = [
+  "downpayment",
+  "reservation",
+  "bankTransfer",
+  "cash"
+];
 
 function uppercase(value: string) {
   return String(value ?? "").trim().toUpperCase();
