@@ -1,32 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { google } from "googleapis";
 import { jsonError, requireAllowedUser } from "@/lib/api";
 import type { CaForm, CaPaymentKey } from "@/lib/ca-config";
 
 export const dynamic = "force-dynamic";
 
-const caTemplateDocumentId = "159LvMzWs_8z6eQzbZ9tN7nO3Cti-peLIl4lsg7bgYmU";
-const caPaymentKeys: CaPaymentKey[] = [
+const defaultAppsScriptUrl =
+  "https://script.google.com/macros/s/AKfycbzCHocS4kBlxA7c60WRz5AvJXsyne7zR5vGvnF9E4vSJ584z_tII7XrTjZvFpkz8Gmh/exec";
+const paymentKeys: CaPaymentKey[] = [
   "downpayment",
   "reservation",
   "bankTransfer",
   "cash"
 ];
-
-function getGoogleDocsAuth() {
-  const email = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
-  const key = process.env.GOOGLE_SHEETS_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!email || !key) throw new Error("Google service account credentials are missing.");
-
-  return new google.auth.JWT({
-    email,
-    key,
-    scopes: [
-      "https://www.googleapis.com/auth/documents",
-      "https://www.googleapis.com/auth/drive"
-    ]
-  });
-}
 
 function uppercase(value: string) {
   return String(value ?? "").trim().toUpperCase();
@@ -47,7 +32,7 @@ function middleInitial(value: string) {
   return cleaned ? `${cleaned}.` : "";
 }
 
-function paymentValues(form: CaForm, key: keyof CaForm["payments"]) {
+function paymentValues(form: CaForm, key: CaPaymentKey) {
   const payment = form.payments[key] ?? { enabled: false, amount: "" };
   return {
     yes: payment.enabled ? "X" : "",
@@ -56,7 +41,7 @@ function paymentValues(form: CaForm, key: keyof CaForm["payments"]) {
   };
 }
 
-function replacementGroups(form: CaForm) {
+function createPlaceholderValues(form: CaForm) {
   const buyerName = [
     uppercase(form.firstName),
     middleInitial(form.middleInitial),
@@ -73,40 +58,50 @@ function replacementGroups(form: CaForm) {
   const bankTransfer = paymentValues(form, "bankTransfer");
   const cash = paymentValues(form, "cash");
 
-  return [
-    { names: ["{{DATE}}"], value: date, required: true },
-    { names: ["{{BUYER_NAME}}", "{{CLIENT_NAME}}"], value: buyerName, required: true },
-    { names: ["{{SURNAME}}"], value: uppercase(form.surname) },
-    { names: ["{{FIRST_NAME}}"], value: uppercase(form.firstName) },
-    { names: ["{{MIDDLE_INITIAL}}"], value: middleInitial(form.middleInitial) },
-    { names: ["{{ADDRESS}}", "{{COMPLETE_ADDRESS}}"], value: uppercase(form.completeAddress), required: true },
-    { names: ["{{AGREED_PRICE}}", "{{PURCHASE_PRICE}}"], value: money(form.agreedPrice), required: true },
-    { names: ["{{UNIT_DETAILS}}", "{{UNIT_MODEL}}"], value: uppercase(form.unitDetails), required: true },
-    { names: ["{{UNIT_COLOR}}", "{{COLOR}}"], value: uppercase(form.unitColor), required: true },
-    { names: ["{{ENGINE_NUMBER}}", "{{ENGINE_NO}}"], value: uppercase(form.engineNumber), required: true },
-    { names: ["{{CHASSIS_NUMBER}}", "{{CHASSIS_NO}}"], value: uppercase(form.chassisNumber), required: true },
-    { names: ["{{CONTACT_NUMBER}}", "{{CP_NUMBER}}"], value: uppercase(form.contactNumber), required: true },
-    { names: ["{{SELLER_NAME}}", "{{SELLER}}"], value: uppercase(form.seller), required: true },
-    { names: ["{{DOWNPAYMENT_YES}}"], value: downpayment.yes },
-    { names: ["{{DOWNPAYMENT_NO}}"], value: downpayment.no },
-    { names: ["{{DOWNPAYMENT_AMOUNT}}"], value: downpayment.amount },
-    { names: ["{{RESERVATION_YES}}"], value: reservation.yes },
-    { names: ["{{RESERVATION_NO}}"], value: reservation.no },
-    { names: ["{{RESERVATION_AMOUNT}}"], value: reservation.amount },
-    { names: ["{{BANK_TRANSFER_YES}}", "{{EWB_YES}}"], value: bankTransfer.yes },
-    { names: ["{{BANK_TRANSFER_NO}}", "{{EWB_NO}}"], value: bankTransfer.no },
-    { names: ["{{BANK_TRANSFER_AMOUNT}}", "{{EWB_AMOUNT}}"], value: bankTransfer.amount },
-    { names: ["{{CASH_YES}}"], value: cash.yes },
-    { names: ["{{CASH_NO}}"], value: cash.no },
-    { names: ["{{CASH_AMOUNT}}"], value: cash.amount }
-  ];
+  return {
+    "{{DATE}}": date,
+    "{{BUYER_NAME}}": buyerName,
+    "{{CLIENT_NAME}}": buyerName,
+    "{{SURNAME}}": uppercase(form.surname),
+    "{{FIRST_NAME}}": uppercase(form.firstName),
+    "{{MIDDLE_INITIAL}}": middleInitial(form.middleInitial),
+    "{{ADDRESS}}": uppercase(form.completeAddress),
+    "{{COMPLETE_ADDRESS}}": uppercase(form.completeAddress),
+    "{{AGREED_PRICE}}": money(form.agreedPrice),
+    "{{PURCHASE_PRICE}}": money(form.agreedPrice),
+    "{{UNIT_DETAILS}}": uppercase(form.unitDetails),
+    "{{UNIT_MODEL}}": uppercase(form.unitDetails),
+    "{{UNIT_COLOR}}": uppercase(form.unitColor),
+    "{{COLOR}}": uppercase(form.unitColor),
+    "{{ENGINE_NUMBER}}": uppercase(form.engineNumber),
+    "{{ENGINE_NO}}": uppercase(form.engineNumber),
+    "{{CHASSIS_NUMBER}}": uppercase(form.chassisNumber),
+    "{{CHASSIS_NO}}": uppercase(form.chassisNumber),
+    "{{CONTACT_NUMBER}}": uppercase(form.contactNumber),
+    "{{CP_NUMBER}}": uppercase(form.contactNumber),
+    "{{SELLER_NAME}}": uppercase(form.seller),
+    "{{SELLER}}": uppercase(form.seller),
+    "{{DOWNPAYMENT_YES}}": downpayment.yes,
+    "{{DOWNPAYMENT_NO}}": downpayment.no,
+    "{{DOWNPAYMENT_AMOUNT}}": downpayment.amount,
+    "{{RESERVATION_YES}}": reservation.yes,
+    "{{RESERVATION_NO}}": reservation.no,
+    "{{RESERVATION_AMOUNT}}": reservation.amount,
+    "{{BANK_TRANSFER_YES}}": bankTransfer.yes,
+    "{{BANK_TRANSFER_NO}}": bankTransfer.no,
+    "{{BANK_TRANSFER_AMOUNT}}": bankTransfer.amount,
+    "{{EWB_YES}}": bankTransfer.yes,
+    "{{EWB_NO}}": bankTransfer.no,
+    "{{EWB_AMOUNT}}": bankTransfer.amount,
+    "{{CASH_YES}}": cash.yes,
+    "{{CASH_NO}}": cash.no,
+    "{{CASH_AMOUNT}}": cash.amount
+  };
 }
 
 export async function POST(request: NextRequest) {
   const user = await requireAllowedUser(request);
   if (user.error) return user.error;
-
-  let temporaryDocumentId = "";
 
   try {
     const form = (await request.json()) as CaForm;
@@ -125,86 +120,53 @@ export async function POST(request: NextRequest) {
     const missing = required.find((key) => !uppercase(form[key]));
     if (missing) return jsonError(`${missing} is required.`);
 
-    const paymentWithoutAmount = caPaymentKeys.find(
+    const paymentWithoutAmount = paymentKeys.find(
       (key) => form.payments[key]?.enabled && !String(form.payments[key]?.amount ?? "").trim()
     );
     if (paymentWithoutAmount) return jsonError(`Amount is required for ${paymentWithoutAmount}.`);
 
-    const auth = getGoogleDocsAuth();
-    const drive = google.drive({ version: "v3", auth });
-    const docs = google.docs({ version: "v1", auth });
-    const templateId = process.env.GOOGLE_DOCS_CA_TEMPLATE_ID?.trim() || caTemplateDocumentId;
+    const appsScriptUrl =
+      process.env.CREATE_CA_APPS_SCRIPT_URL?.trim() || defaultAppsScriptUrl;
+    const secret = process.env.CREATE_CA_APPS_SCRIPT_SECRET?.trim();
+    if (!secret) {
+      throw new Error("CREATE_CA_APPS_SCRIPT_SECRET is missing in Vercel.");
+    }
 
-    const copied = await drive.files.copy({
-      fileId: templateId,
-      requestBody: {
-        name: `TEMP_CA_${uppercase(form.surname)}_${Date.now()}`
-      },
-      fields: "id"
+    const fileName = `DREAMBIKE_CA_${uppercase(form.surname).replace(/\s+/g, "_")}.pdf`;
+    const response = await fetch(appsScriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        secret,
+        fileName,
+        values: createPlaceholderValues(form)
+      }),
+      cache: "no-store",
+      redirect: "follow"
     });
-    temporaryDocumentId = copied.data.id ?? "";
-    if (!temporaryDocumentId) throw new Error("Unable to create a temporary C.A document.");
+    const responseText = await response.text();
+    let result: { error?: string; base64?: string; fileName?: string; mimeType?: string };
 
-    const groups = replacementGroups(form);
-    const requests = groups.flatMap((group) =>
-      group.names.map((name) => ({
-        replaceAllText: {
-          containsText: {
-            text: name,
-            matchCase: true
-          },
-          replaceText: group.value
-        }
-      }))
-    );
-    const updated = await docs.documents.batchUpdate({
-      documentId: temporaryDocumentId,
-      requestBody: { requests }
-    });
-
-    let replyIndex = 0;
-    const missingPlaceholders: string[] = [];
-    groups.forEach((group) => {
-      let replacements = 0;
-      group.names.forEach(() => {
-        replacements += updated.data.replies?.[replyIndex]?.replaceAllText?.occurrencesChanged ?? 0;
-        replyIndex += 1;
-      });
-      if (group.required && replacements === 0) missingPlaceholders.push(group.names[0]);
-    });
-    if (missingPlaceholders.length) {
+    try {
+      result = JSON.parse(responseText);
+    } catch {
       throw new Error(
-        `Missing Google Docs placeholders: ${missingPlaceholders.join(", ")}. Add them to the template as plain, unbroken text.`
+        `Apps Script returned an invalid response.${responseText ? ` ${responseText.slice(0, 140)}` : ""}`
       );
     }
 
-    const exported = await drive.files.export(
-      {
-        fileId: temporaryDocumentId,
-        mimeType: "application/pdf"
-      },
-      {
-        responseType: "arraybuffer"
-      }
-    );
+    if (!response.ok || result.error) {
+      throw new Error(result.error || `Apps Script request failed with status ${response.status}.`);
+    }
+    if (!result.base64) throw new Error("Apps Script did not return a PDF.");
 
-    return new NextResponse(Buffer.from(exported.data as ArrayBuffer), {
+    return new NextResponse(Buffer.from(result.base64, "base64"), {
       headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="DREAMBIKE_CA_${uppercase(form.surname).replace(/\s+/g, "_")}.pdf"`
+        "Content-Type": result.mimeType || "application/pdf",
+        "Content-Disposition": `attachment; filename="${result.fileName || fileName}"`
       }
     });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Unable to generate C.A PDF.", 500);
-  } finally {
-    if (temporaryDocumentId) {
-      try {
-        const auth = getGoogleDocsAuth();
-        const drive = google.drive({ version: "v3", auth });
-        await drive.files.delete({ fileId: temporaryDocumentId });
-      } catch {
-        // Cleanup failure should not replace the generation result.
-      }
-    }
   }
 }
