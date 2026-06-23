@@ -5,7 +5,7 @@ import type { CaForm, CaPaymentKey } from "@/lib/ca-config";
 export const dynamic = "force-dynamic";
 
 const defaultAppsScriptUrl =
-  "https://script.google.com/macros/s/AKfycbzCHocS4kBlxA7c60WRz5AvJXsyne7zR5vGvnF9E4vSJ584z_tII7XrTjZvFpkz8Gmh/exec";
+  "https://script.google.com/macros/s/AKfycbyDuS16lCVj4BA3wcr19WJX1QF7o7dTo7TBJTfUXOxBjcrwLsWcSsnRYOe_k8k44he0ug/exec";
 const paymentKeys: CaPaymentKey[] = [
   "downpayment",
   "reservation",
