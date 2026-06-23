@@ -1,10 +1,9 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
-import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
+import { google } from "googleapis";
 import { jsonError, requireAllowedUser } from "@/lib/api";
-import { caCoordinates } from "@/lib/ca-config";
-import type { CaForm, CaPaymentKey } from "@/lib/ca-config";
+import { getGoogleAuth } from "@/lib/google-sheets";
+import { caPaymentKeys, caTemplateDocumentId } from "@/lib/ca-config";
+import type { CaForm } from "@/lib/ca-config";
 
 export const dynamic = "force-dynamic";
 
@@ -12,21 +11,14 @@ function uppercase(value: string) {
   return String(value ?? "").trim().toUpperCase();
 }
 
-function fittedSize(
-  text: string,
-  font: { widthOfTextAtSize(text: string, size: number): number },
-  size: number,
-  maxWidth: number,
-  minSize = 7
-) {
-  let fitted = size;
-  while (fitted > minSize && font.widthOfTextAtSize(text, fitted) > maxWidth) fitted -= 0.25;
-  return fitted;
-}
-
 function money(value: string) {
   const numeric = Number(String(value ?? "").replace(/,/g, ""));
-  return Number.isFinite(numeric) && numeric ? numeric.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+  return Number.isFinite(numeric) && numeric
+    ? numeric.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
+    : "";
 }
 
 function middleInitial(value: string) {
@@ -34,207 +26,148 @@ function middleInitial(value: string) {
   return cleaned ? `${cleaned}.` : "";
 }
 
-type RichSegment = {
-  text: string;
-  font: PDFFont;
-  underline?: boolean;
-  wideSpacing?: boolean;
-};
+function paymentValues(form: CaForm, key: keyof CaForm["payments"]) {
+  const payment = form.payments[key] ?? { enabled: false, amount: "" };
+  return {
+    yes: payment.enabled ? "X" : "",
+    no: payment.enabled ? "" : "X",
+    amount: payment.enabled ? money(payment.amount) : ""
+  };
+}
 
-function richLines(segments: RichSegment[], size: number, maxWidth: number) {
-  const tokens = segments.flatMap((segment) =>
-    segment.text
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((text) => ({ ...segment, text }))
-  );
-  const lines: Array<Array<RichSegment & { drawText: string }>> = [[]];
-  let lineWidth = 0;
-
-  tokens.forEach((token) => {
-    const currentLine = lines[lines.length - 1];
-    const prefix = currentLine.length && !/^[,.;:)]/.test(token.text) ? (token.wideSpacing ? "  " : " ") : "";
-    const drawText = `${prefix}${token.text}`;
-    const width = token.font.widthOfTextAtSize(drawText, size);
-
-    if (currentLine.length && lineWidth + width > maxWidth) {
-      lines.push([{ ...token, drawText: token.text }]);
-      lineWidth = token.font.widthOfTextAtSize(token.text, size);
-    } else {
-      currentLine.push({ ...token, drawText });
-      lineWidth += width;
-    }
+function replacementGroups(form: CaForm) {
+  const buyerName = [
+    uppercase(form.firstName),
+    middleInitial(form.middleInitial),
+    uppercase(form.surname)
+  ].filter(Boolean).join(" ");
+  const date = new Date().toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "2-digit",
+    timeZone: "Asia/Manila"
   });
+  const downpayment = paymentValues(form, "downpayment");
+  const reservation = paymentValues(form, "reservation");
+  const bankTransfer = paymentValues(form, "bankTransfer");
+  const cash = paymentValues(form, "cash");
 
-  return lines;
+  return [
+    { names: ["{{DATE}}"], value: date, required: true },
+    { names: ["{{BUYER_NAME}}", "{{CLIENT_NAME}}"], value: buyerName, required: true },
+    { names: ["{{SURNAME}}"], value: uppercase(form.surname) },
+    { names: ["{{FIRST_NAME}}"], value: uppercase(form.firstName) },
+    { names: ["{{MIDDLE_INITIAL}}"], value: middleInitial(form.middleInitial) },
+    { names: ["{{ADDRESS}}", "{{COMPLETE_ADDRESS}}"], value: uppercase(form.completeAddress), required: true },
+    { names: ["{{AGREED_PRICE}}", "{{PURCHASE_PRICE}}"], value: money(form.agreedPrice), required: true },
+    { names: ["{{UNIT_DETAILS}}", "{{UNIT_MODEL}}"], value: uppercase(form.unitDetails), required: true },
+    { names: ["{{UNIT_COLOR}}", "{{COLOR}}"], value: uppercase(form.unitColor), required: true },
+    { names: ["{{ENGINE_NUMBER}}", "{{ENGINE_NO}}"], value: uppercase(form.engineNumber), required: true },
+    { names: ["{{CHASSIS_NUMBER}}", "{{CHASSIS_NO}}"], value: uppercase(form.chassisNumber), required: true },
+    { names: ["{{CONTACT_NUMBER}}", "{{CP_NUMBER}}"], value: uppercase(form.contactNumber), required: true },
+    { names: ["{{SELLER_NAME}}", "{{SELLER}}"], value: uppercase(form.seller), required: true },
+    { names: ["{{DOWNPAYMENT_YES}}"], value: downpayment.yes },
+    { names: ["{{DOWNPAYMENT_NO}}"], value: downpayment.no },
+    { names: ["{{DOWNPAYMENT_AMOUNT}}"], value: downpayment.amount },
+    { names: ["{{RESERVATION_YES}}"], value: reservation.yes },
+    { names: ["{{RESERVATION_NO}}"], value: reservation.no },
+    { names: ["{{RESERVATION_AMOUNT}}"], value: reservation.amount },
+    { names: ["{{BANK_TRANSFER_YES}}", "{{EWB_YES}}"], value: bankTransfer.yes },
+    { names: ["{{BANK_TRANSFER_NO}}", "{{EWB_NO}}"], value: bankTransfer.no },
+    { names: ["{{BANK_TRANSFER_AMOUNT}}", "{{EWB_AMOUNT}}"], value: bankTransfer.amount },
+    { names: ["{{CASH_YES}}"], value: cash.yes },
+    { names: ["{{CASH_NO}}"], value: cash.no },
+    { names: ["{{CASH_AMOUNT}}"], value: cash.amount }
+  ];
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAllowedUser(request);
-  if (auth.error) return auth.error;
+  const user = await requireAllowedUser(request);
+  if (user.error) return user.error;
+
+  let temporaryDocumentId = "";
 
   try {
     const form = (await request.json()) as CaForm;
-    const required = ["surname", "firstName", "completeAddress", "agreedPrice", "unitDetails", "unitColor", "engineNumber", "chassisNumber", "contactNumber", "seller"] as const;
+    const required = [
+      "surname",
+      "firstName",
+      "completeAddress",
+      "agreedPrice",
+      "unitDetails",
+      "unitColor",
+      "engineNumber",
+      "chassisNumber",
+      "contactNumber",
+      "seller"
+    ] as const;
     const missing = required.find((key) => !uppercase(form[key]));
     if (missing) return jsonError(`${missing} is required.`);
-    const paymentKeys = Object.keys(caCoordinates.payments) as CaPaymentKey[];
-    const paymentWithoutAmount = paymentKeys.find((key) => form.payments[key]?.enabled && !String(form.payments[key]?.amount ?? "").trim());
+
+    const paymentWithoutAmount = caPaymentKeys.find(
+      (key) => form.payments[key]?.enabled && !String(form.payments[key]?.amount ?? "").trim()
+    );
     if (paymentWithoutAmount) return jsonError(`Amount is required for ${paymentWithoutAmount}.`);
 
-    const template = await readFile(path.join(process.cwd(), "public", "dreambike-contract-agreement-template.pdf"));
-    const document = await PDFDocument.load(template);
-    const page = document.getPage(0);
-    const regular = await document.embedFont(StandardFonts.Helvetica);
-    const bold = await document.embedFont(StandardFonts.HelveticaBold);
-    const color = rgb(0.02, 0.08, 0.18);
-    const fullName = [uppercase(form.firstName), middleInitial(form.middleInitial), uppercase(form.surname)].filter(Boolean).join("  ");
-    const date = new Date()
-      .toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "Asia/Manila" })
-      .toUpperCase();
+    const auth = getGoogleAuth();
+    const drive = google.drive({ version: "v3", auth });
+    const docs = google.docs({ version: "v1", auth });
+    const templateId = process.env.GOOGLE_DOCS_CA_TEMPLATE_ID?.trim() || caTemplateDocumentId;
 
-    const draw = (
-      value: string,
-      coordinate: { x: number; y: number; size: number; maxWidth: number; minSize?: number },
-      useBold = false
-    ) => {
-      const font = useBold ? bold : regular;
-      const text = uppercase(value);
-      const size = fittedSize(text, font, coordinate.size, coordinate.maxWidth, coordinate.minSize);
-      page.drawText(text, { x: coordinate.x, y: coordinate.y, size, font, color });
-    };
+    const copied = await drive.files.copy({
+      fileId: templateId,
+      requestBody: {
+        name: `TEMP_CA_${uppercase(form.surname)}_${Date.now()}`
+      },
+      fields: "id"
+    });
+    temporaryDocumentId = copied.data.id ?? "";
+    if (!temporaryDocumentId) throw new Error("Unable to create a temporary C.A document.");
 
-    const drawCentered = (
-      value: string,
-      line: { x1: number; x2: number; y: number },
-      size: number
-    ) => {
-      const text = uppercase(value);
-      const availableWidth = line.x2 - line.x1;
-      const fitted = fittedSize(text, bold, size, availableWidth, 7);
-      const width = bold.widthOfTextAtSize(text, fitted);
-      page.drawText(text, {
-        x: line.x1 + (availableWidth - width) / 2,
-        y: line.y + 1.5,
-        size: fitted,
-        font: bold,
-        color
-      });
-    };
-
-    const drawVendeeParagraph = () => {
-      const segments: RichSegment[] = [
-        { text: "and", font: regular },
-        { text: fullName, font: bold, underline: true, wideSpacing: true },
-        { text: ", of legal age, Filipino citizen, with residence and postal address at", font: regular },
-        { text: uppercase(form.completeAddress), font: regular, underline: true },
-        { text: "herein after referred to as", font: regular },
-        { text: "\"VENDEE\"", font: bold }
-      ];
-      const maxWidth = 490;
-      let size = 10;
-      let lines = richLines(segments, size, maxWidth);
-      while (lines.length > 4 && size > 7.5) {
-        size -= 0.25;
-        lines = richLines(segments, size, maxWidth);
-      }
-
-      page.drawRectangle({
-        x: 42,
-        y: 596,
-        width: 510,
-        height: 82,
-        color: rgb(1, 1, 1)
-      });
-
-      const lineHeight = size + 3;
-      lines.forEach((line, lineIndex) => {
-        const lineWidth = line.reduce((total, token) => total + token.font.widthOfTextAtSize(token.drawText, size), 0);
-        let x = lineIndex === 0 ? 73 : 53;
-        if (lineIndex === 0) x += Math.max(0, (450 - lineWidth) / 2);
-        const y = 654 - lineIndex * lineHeight;
-
-        line.forEach((token) => {
-          const width = token.font.widthOfTextAtSize(token.drawText, size);
-          page.drawText(token.drawText, { x, y, size, font: token.font, color });
-          if (token.underline) {
-            page.drawLine({
-              start: { x: x + (token.drawText.startsWith(" ") ? token.font.widthOfTextAtSize(" ", size) : 0), y: y - 1 },
-              end: { x: x + width, y: y - 1 },
-              thickness: 0.55,
-              color
-            });
-          }
-          x += width;
-        });
-      });
-    };
-
-    Object.values(caCoordinates.lines).forEach((line) => {
-      page.drawLine({
-        start: { x: line.x1, y: line.y },
-        end: { x: line.x2, y: line.y },
-        thickness: 0.8,
-        color
-      });
+    const groups = replacementGroups(form);
+    const requests = groups.flatMap((group) =>
+      group.names.map((name) => ({
+        replaceAllText: {
+          containsText: {
+            text: name,
+            matchCase: true
+          },
+          replaceText: group.value
+        }
+      }))
+    );
+    const updated = await docs.documents.batchUpdate({
+      documentId: temporaryDocumentId,
+      requestBody: { requests }
     });
 
-    draw(date, caCoordinates.date);
-    drawVendeeParagraph();
-    draw(money(form.agreedPrice), caCoordinates.purchasePrice, true);
-    draw(form.unitDetails, caCoordinates.unitDetails, true);
-    draw(form.unitColor, caCoordinates.unitColor, true);
-    draw(form.engineNumber, caCoordinates.engineNumber, true);
-    draw(form.chassisNumber, caCoordinates.chassisNumber, true);
-    draw(form.contactNumber, caCoordinates.contactNumber, true);
-    drawCentered(form.seller, caCoordinates.lines.seller, caCoordinates.sellerName.size);
-    drawCentered(fullName, caCoordinates.lines.buyer, caCoordinates.buyerName.size);
-
-    paymentKeys.forEach((key) => {
-      const payment = form.payments[key] ?? { enabled: false, amount: "" };
-      const coordinate = caCoordinates.payments[key];
-
-      page.drawRectangle({
-        x: 211,
-        y: coordinate.y - 2,
-        width: 135,
-        height: 11,
-        color: rgb(1, 1, 1)
+    let replyIndex = 0;
+    const missingPlaceholders: string[] = [];
+    groups.forEach((group) => {
+      let replacements = 0;
+      group.names.forEach(() => {
+        replacements += updated.data.replies?.[replyIndex]?.replaceAllText?.occurrencesChanged ?? 0;
+        replyIndex += 1;
       });
-      page.drawText("PHP.", {
-        x: 215,
-        y: coordinate.y,
-        size: 8,
-        font: regular,
-        color
-      });
-      page.drawLine({
-        start: { x: 242, y: coordinate.y - 0.5 },
-        end: { x: 342, y: coordinate.y - 0.5 },
-        thickness: 0.65,
-        color
-      });
-
-      page.drawText("X", {
-        x: payment.enabled ? coordinate.yesX : coordinate.noX,
-        y: coordinate.y,
-        size: 8,
-        font: bold,
-        color
-      });
-      if (payment.enabled && payment.amount) {
-        page.drawText(money(payment.amount), {
-          x: coordinate.amountX,
-          y: coordinate.y,
-          size: 8,
-          font: bold,
-          color
-        });
-      }
+      if (group.required && replacements === 0) missingPlaceholders.push(group.names[0]);
     });
+    if (missingPlaceholders.length) {
+      throw new Error(
+        `Missing Google Docs placeholders: ${missingPlaceholders.join(", ")}. Add them to the template as plain, unbroken text.`
+      );
+    }
 
-    const output = await document.save();
-    return new NextResponse(Buffer.from(output), {
+    const exported = await drive.files.export(
+      {
+        fileId: temporaryDocumentId,
+        mimeType: "application/pdf"
+      },
+      {
+        responseType: "arraybuffer"
+      }
+    );
+
+    return new NextResponse(Buffer.from(exported.data as ArrayBuffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="DREAMBIKE_CA_${uppercase(form.surname).replace(/\s+/g, "_")}.pdf"`
@@ -242,5 +175,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Unable to generate C.A PDF.", 500);
+  } finally {
+    if (temporaryDocumentId) {
+      try {
+        const auth = getGoogleAuth();
+        const drive = google.drive({ version: "v3", auth });
+        await drive.files.delete({ fileId: temporaryDocumentId });
+      } catch {
+        // Cleanup failure should not replace the generation result.
+      }
+    }
   }
 }
