@@ -27,7 +27,7 @@ const emptyForm: CaForm = {
 
 const payments: Array<{ key: CaPaymentKey; label: string }> = [
   { key: "downpayment", label: "Downpayment" },
-  { key: "reservation", label: "Reservation" },
+  { key: "reservation", label: "TOO / REG" },
   { key: "bankTransfer", label: "EWB / Bank Transfer" },
   { key: "cash", label: "Cash" }
 ];
