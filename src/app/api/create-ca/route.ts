@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { jsonError, requireAllowedUser } from "@/lib/api";
-import { getGoogleAuth } from "@/lib/google-sheets";
 import type { CaForm, CaPaymentKey } from "@/lib/ca-config";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +12,21 @@ const caPaymentKeys: CaPaymentKey[] = [
   "bankTransfer",
   "cash"
 ];
+
+function getGoogleDocsAuth() {
+  const email = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
+  const key = process.env.GOOGLE_SHEETS_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  if (!email || !key) throw new Error("Google service account credentials are missing.");
+
+  return new google.auth.JWT({
+    email,
+    key,
+    scopes: [
+      "https://www.googleapis.com/auth/documents",
+      "https://www.googleapis.com/auth/drive"
+    ]
+  });
+}
 
 function uppercase(value: string) {
   return String(value ?? "").trim().toUpperCase();
@@ -116,7 +130,7 @@ export async function POST(request: NextRequest) {
     );
     if (paymentWithoutAmount) return jsonError(`Amount is required for ${paymentWithoutAmount}.`);
 
-    const auth = getGoogleAuth();
+    const auth = getGoogleDocsAuth();
     const drive = google.drive({ version: "v3", auth });
     const docs = google.docs({ version: "v1", auth });
     const templateId = process.env.GOOGLE_DOCS_CA_TEMPLATE_ID?.trim() || caTemplateDocumentId;
@@ -185,7 +199,7 @@ export async function POST(request: NextRequest) {
   } finally {
     if (temporaryDocumentId) {
       try {
-        const auth = getGoogleAuth();
+        const auth = getGoogleDocsAuth();
         const drive = google.drive({ version: "v3", auth });
         await drive.files.delete({ fileId: temporaryDocumentId });
       } catch {
