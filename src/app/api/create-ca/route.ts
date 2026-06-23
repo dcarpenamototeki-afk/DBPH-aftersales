@@ -51,8 +51,8 @@ function getAppsScriptUrl() {
 function paymentValues(form: CaForm, key: CaPaymentKey) {
   const payment = form.payments[key] ?? { enabled: false, amount: "" };
   return {
-    yes: payment.enabled ? "X" : "",
-    no: payment.enabled ? "" : "X",
+    yes: payment.enabled ? "✓" : "",
+    no: payment.enabled ? "" : "✓",
     amount: payment.enabled ? money(payment.amount) : ""
   };
 }
