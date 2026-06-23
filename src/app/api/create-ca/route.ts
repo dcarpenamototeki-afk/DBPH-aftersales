@@ -32,6 +32,22 @@ function middleInitial(value: string) {
   return cleaned ? `${cleaned}.` : "";
 }
 
+function getAppsScriptUrl() {
+  const configured = process.env.CREATE_CA_APPS_SCRIPT_URL?.trim();
+  if (!configured) return defaultAppsScriptUrl;
+
+  try {
+    const url = new URL(configured);
+    if (url.protocol === "https:" && url.hostname === "script.google.com") {
+      return url.toString();
+    }
+  } catch {
+    // Fall back to the known deployment URL when Vercel contains an invalid value.
+  }
+
+  return defaultAppsScriptUrl;
+}
+
 function paymentValues(form: CaForm, key: CaPaymentKey) {
   const payment = form.payments[key] ?? { enabled: false, amount: "" };
   return {
@@ -125,8 +141,7 @@ export async function POST(request: NextRequest) {
     );
     if (paymentWithoutAmount) return jsonError(`Amount is required for ${paymentWithoutAmount}.`);
 
-    const appsScriptUrl =
-      process.env.CREATE_CA_APPS_SCRIPT_URL?.trim() || defaultAppsScriptUrl;
+    const appsScriptUrl = getAppsScriptUrl();
     const secret = process.env.CREATE_CA_APPS_SCRIPT_SECRET?.trim();
     if (!secret) {
       throw new Error("CREATE_CA_APPS_SCRIPT_SECRET is missing in Vercel.");
