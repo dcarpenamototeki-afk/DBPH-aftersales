@@ -208,9 +208,9 @@ export function CatalogCardMakerPage() {
         drawCoverImage(context, uploaded, imageSlots[key]);
       }
 
-      drawCenteredText(context, form.titleLine1, 222, 620, 46, "#ffffff", true);
-      drawCenteredText(context, form.titleLine2, 303, 650, 96, "#ffc400", true);
-      drawCenteredText(context, form.titleLine3, 382, 620, 42, "#ffffff", true);
+      drawCenteredText(context, form.titleLine1, 232, 620, 44, "#ffffff", true);
+      drawCenteredText(context, form.titleLine2, 300, 650, 88, "#ffc400", true);
+      drawCenteredText(context, form.titleLine3, 363, 620, 38, "#ffffff", true);
 
       context.textAlign = "center";
       context.textBaseline = "middle";
@@ -222,7 +222,7 @@ export function CatalogCardMakerPage() {
         { value: formatPeso(form.swappingValue), y: 1466 }
       ].forEach((row) => {
         if (!row.value) return;
-        const size = fitText(context, row.value, 390, 47, 24);
+        const size = fitText(context, row.value, 390, 41, 22);
         context.font = `900 ${size}px "United Kingdom", Impact, Haettenschweiler, "Arial Black", sans-serif`;
         context.fillText(row.value, 694, row.y);
       });
@@ -257,6 +257,12 @@ export function CatalogCardMakerPage() {
       <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
         <section className="rounded-lg border border-line bg-white p-4 shadow-soft">
           <h3 className="mb-3 font-semibold text-ink">Images</h3>
+          <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+            Need to download and install font please use this link:{" "}
+            <a className="font-bold underline" href="https://bit.ly/4b7WFsW" rel="noreferrer" target="_blank">
+              https://bit.ly/4b7WFsW
+            </a>
+          </p>
           <div className="grid gap-3">
             {(["main", ...closeupKeys] as ImageKey[]).map((key) => (
               <label key={key} className="grid gap-1.5 text-sm font-medium text-slate-700">
