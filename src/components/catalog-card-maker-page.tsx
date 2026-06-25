@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, FileImage, ImagePlus, RefreshCw, X } from "lucide-react";
 import { PageHeader } from "./page-header";
 
@@ -130,10 +130,10 @@ export function CatalogCardMakerPage() {
   const [outputUrl, setOutputUrl] = useState("");
   const [message, setMessage] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [resetVersion, setResetVersion] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const outputRef = useRef("");
   const imageUrlsRef = useRef<Partial<Record<ImageKey, string>>>({});
-  const fileInputKey = useMemo(() => JSON.stringify(Object.keys(imageUrls)) + outputUrl, [imageUrls, outputUrl]);
 
   useEffect(() => {
     outputRef.current = outputUrl;
@@ -162,6 +162,7 @@ export function CatalogCardMakerPage() {
     setImageUrls({});
     setForm(initialForm);
     setMessage("");
+    setResetVersion((version) => version + 1);
   }
 
   function setValue(key: keyof FormState, value: string) {
@@ -258,9 +259,9 @@ export function CatalogCardMakerPage() {
           <h3 className="mb-3 font-semibold text-ink">Images</h3>
           <div className="grid gap-3">
             {(["main", ...closeupKeys] as ImageKey[]).map((key) => (
-              <label key={`${key}-${fileInputKey}`} className="grid gap-1.5 text-sm font-medium text-slate-700">
+              <label key={key} className="grid gap-1.5 text-sm font-medium text-slate-700">
                 {imageSlots[key].label}
-                <input accept="image/*" type="file" onChange={(event) => setImage(key, event.target.files?.[0] ?? null)} />
+                <input key={`${key}-${resetVersion}`} accept="image/*" type="file" onChange={(event) => setImage(key, event.target.files?.[0] ?? null)} />
               </label>
             ))}
           </div>
