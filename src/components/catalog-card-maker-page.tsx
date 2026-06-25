@@ -30,7 +30,7 @@ const templatePath = "/catalog-card-template.png";
 const canvasSize = { width: 943, height: 1676 };
 
 const imageSlots: Record<ImageKey, { label: string; x: number; y: number; width: number; height: number }> = {
-  main: { label: "Main", x: 12, y: 382, width: 916, height: 574 },
+  main: { label: "Main", x: 12, y: 420, width: 916, height: 536 },
   closeup1: { label: "Closeup 1", x: 14, y: 1004, width: 216, height: 244 },
   closeup2: { label: "Closeup 2", x: 234, y: 1004, width: 229, height: 244 },
   closeup3: { label: "Closeup 3", x: 471, y: 1004, width: 226, height: 244 },
