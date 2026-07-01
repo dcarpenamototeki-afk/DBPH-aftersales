@@ -18,12 +18,10 @@ const releaseEditColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "plate_number", label: "Plate Number" },
   { key: "orcr_release_date", label: "ORCR Date Out", type: "date" },
   { key: "orcr_release_method", label: "Mode of Claiming", type: "status", options: ["LBC", "WALK IN"] },
-  { key: "orcr_lbc_tracking_number", label: "ORCR Tracking Number" },
   { key: "orcr_received_by", label: "ORCR Received By" },
   { key: "orcr_claimed_image_url", label: "ORCR Claimed Image Link" },
   { key: "plate_release_date", label: "Plate Date Out", type: "date" },
   { key: "plate_release_method", label: "Mode of Claiming", type: "status", options: ["LBC", "WALK IN"] },
-  { key: "plate_lbc_tracking_number", label: "Plate Tracking Number" },
   { key: "plate_received_by", label: "Plate Received By" },
   { key: "plate_claimed_image_url", label: "Plate Claimed Image Link" },
   { key: "remarks", label: "Remarks" }
@@ -42,10 +40,6 @@ function dash(value: unknown) {
 
 function receivedBy(method: string, value: string) {
   return method === "WALK IN" ? dash(value) : "-";
-}
-
-function lbcTracking(method: string, value: string) {
-  return method === "LBC" ? dash(value) : "-";
 }
 
 function DetailRow({ label, value }: { label: string; value: unknown }) {
@@ -119,8 +113,6 @@ export function ReleasedPage() {
           row.engine_number,
           row.chassis_number,
           row.plate_number,
-          row.orcr_lbc_tracking_number,
-          row.plate_lbc_tracking_number,
           row.orcr_received_by,
           row.plate_received_by,
           row.orcr_claimed_image_url,
@@ -167,12 +159,10 @@ export function ReleasedPage() {
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">ORCR Date Out</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Mode of Claiming</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">ORCR Received by</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">ORCR LBC Tracking #</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">ORCR Claimed</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Date Out</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Mode of Claiming</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Received by</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate LBC Tracking #</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Claimed</th>
               <th className="sticky right-0 border-b border-line bg-slate-100 px-3 py-3 font-semibold">Actions</th>
             </tr>
@@ -189,7 +179,6 @@ export function ReleasedPage() {
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.orcr_release_date ?? "-"}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.orcr_release_method || "-"}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{receivedBy(row.orcr_release_method, row.orcr_received_by)}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{lbcTracking(row.orcr_release_method, row.orcr_lbc_tracking_number)}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">
                     {row.orcr_claimed_image_url ? (
                       <a className="font-semibold text-blue-700 hover:underline" href={row.orcr_claimed_image_url} target="_blank" rel="noreferrer">IMAGE</a>
@@ -198,7 +187,6 @@ export function ReleasedPage() {
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_release_date ?? "-"}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_release_method || "-"}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{receivedBy(row.plate_release_method, row.plate_received_by)}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{lbcTracking(row.plate_release_method, row.plate_lbc_tracking_number)}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">
                     {row.plate_claimed_image_url ? (
                       <a className="font-semibold text-blue-700 hover:underline" href={row.plate_claimed_image_url} target="_blank" rel="noreferrer">IMAGE</a>
@@ -221,7 +209,7 @@ export function ReleasedPage() {
               ))
             ) : (
               <tr>
-                <td className="px-3 py-6 text-slate-500" colSpan={16}>
+                <td className="px-3 py-6 text-slate-500" colSpan={14}>
                   No released ORCR or plate records yet.
                 </td>
               </tr>

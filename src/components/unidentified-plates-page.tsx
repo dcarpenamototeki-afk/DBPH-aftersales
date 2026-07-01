@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FilePenLine, Link2, PackageCheck, Radar, Search, Trash2 } from "lucide-react";
 import { ColumnDef, UnidentifiedPlateRecord } from "@/lib/types";
 import { PageHeader } from "./page-header";
@@ -47,7 +47,6 @@ function emptyRecord(): Partial<UnidentifiedPlateRecord> {
 export function UnidentifiedPlatesPage() {
   const [rows, setRows] = useState<UnidentifiedPlateRecord[]>([]);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
   const [editing, setEditing] = useState<Partial<UnidentifiedPlateRecord> | null>(null);
   const [deleting, setDeleting] = useState<UnidentifiedPlateRecord | null>(null);
   const [matching, setMatching] = useState<UnidentifiedPlateRecord | null>(null);
@@ -77,9 +76,7 @@ export function UnidentifiedPlatesPage() {
     return () => window.clearTimeout(timer);
   }, [load]);
 
-  const filtered = useMemo(() => {
-    return rows.filter((row) => (status ? row.status === status : row.status !== "RELEASED"));
-  }, [rows, status]);
+  const untracedRows = rows.filter((row) => row.status === "UNTRACED");
 
   async function saveRecord() {
     if (!editing) return;
@@ -105,15 +102,27 @@ export function UnidentifiedPlatesPage() {
   }
 
   async function trace(row: UnidentifiedPlateRecord) {
-    setMatching(row);
     const response = await fetch(`/api/plate-trace?plate=${encodeURIComponent(row.plate_number)}`);
     const body = await response.json();
-    setMatches(body.matches ?? []);
-    setError(body.error ?? "");
+    if (!response.ok) {
+      setError(body.error ?? "Unable to trace plate.");
+      return;
+    }
+
+    const foundMatches = (body.matches ?? []) as Match[];
+    const orcrMatches = foundMatches.filter((match) => match.recordType === "ORCR / PLATE");
+    if (orcrMatches.length === 1) {
+      await linkMatch(orcrMatches[0], row);
+      return;
+    }
+
+    setMatching(row);
+    setMatches(foundMatches);
+    setError("");
   }
 
-  async function linkMatch(match: Match) {
-    if (!matching) return;
+  async function linkMatch(match: Match, target = matching) {
+    if (!target) return;
     const update = {
       status: "MATCHED",
       matched_registered_name: match.registeredName,
@@ -122,7 +131,7 @@ export function UnidentifiedPlatesPage() {
       matched_record_type: match.recordType,
       matched_record_id: match.recordId
     };
-    const response = await fetch(`/api/unidentified-plates/${matching.id}`, {
+    const response = await fetch(`/api/unidentified-plates/${target.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(update)
@@ -134,6 +143,7 @@ export function UnidentifiedPlatesPage() {
     }
     setMatching(null);
     setMatches([]);
+    setRows((current) => current.filter((row) => row.id !== target.id));
     load();
   }
 
@@ -193,17 +203,11 @@ export function UnidentifiedPlatesPage() {
         </button>
       </PageHeader>
 
-      <div className="mb-4 grid gap-3 rounded-lg border border-line bg-white p-3 shadow-soft lg:grid-cols-[1fr_auto]">
+      <div className="mb-4 rounded-lg border border-line bg-white p-3 shadow-soft">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={17} />
           <input className="w-full pl-9" placeholder="Search plate number or matched owner" value={search} onChange={(event) => setSearch(event.target.value)} />
         </label>
-        <select value={status} onChange={(event) => setStatus(event.target.value)}>
-          <option value="">Active only</option>
-          <option value="UNTRACED">Untraced</option>
-          <option value="MATCHED">Matched</option>
-          <option value="RELEASED">Released</option>
-        </select>
       </div>
 
       {error ? <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div> : null}
@@ -219,7 +223,7 @@ export function UnidentifiedPlatesPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length ? filtered.map((row) => (
+            {untracedRows.length ? untracedRows.map((row) => (
               <tr key={row.id} className="odd:bg-white even:bg-slate-50">
                 <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_number}</td>
                 <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.date_received ?? "-"}</td>
