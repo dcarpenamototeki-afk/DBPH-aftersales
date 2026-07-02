@@ -11,6 +11,7 @@ const backupTables = [
   "unidentified_plate_records",
   "too_status_records",
   "dbph_warehouse_inventory",
+  "dbph_warehouse_monthly_reports",
   "authorized_users",
   "activity_log"
 ] as const;

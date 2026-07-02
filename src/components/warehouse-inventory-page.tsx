@@ -7,6 +7,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   BarChart3,
+  CalendarClock,
   Download,
   FilePenLine,
   PackageMinus,
@@ -28,8 +29,28 @@ type SortKey = "model" | "color" | "engine_number" | "chassis_number" | "orcr" |
 type SortState = { key: SortKey; direction: "asc" | "desc" };
 type SummarySortKey = "model" | "color" | "db1" | "db2" | "total" | "cost" | "totalValue";
 type SummarySortState = { key: SummarySortKey; direction: "asc" | "desc" };
+type MonthlyReport = {
+  id: string;
+  report_year: number;
+  report_month: number;
+  generated_at: string;
+};
 
 const warehouses: WarehouseName[] = ["DB1 WAREHOUSE", "DB2 WAREHOUSE"];
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
+];
 const sortableColumns: Array<{ key: SortKey; label: string }> = [
   { key: "model", label: "Model" },
   { key: "color", label: "Color" },
@@ -100,20 +121,27 @@ export function WarehouseInventoryPage() {
     "DB2 WAREHOUSE": { key: "model", direction: "asc" }
   });
   const [summarySort, setSummarySort] = useState<SummarySortState>({ key: "model", direction: "asc" });
+  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
+  const [downloadingReport, setDownloadingReport] = useState(0);
+  const reportYear = new Date().getFullYear();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/warehouse-inventory?limit=2000");
-      const body = await response.json();
+      const [response, reportsResponse] = await Promise.all([
+        fetch("/api/warehouse-inventory?limit=2000"),
+        fetch(`/api/warehouse-inventory/monthly-reports?year=${reportYear}`)
+      ]);
+      const [body, reportsBody] = await Promise.all([response.json(), reportsResponse.json()]);
       setRows(body.data ?? []);
+      setMonthlyReports(reportsBody.data ?? []);
       setMessage(body.error ?? "");
     } catch {
       setMessage("Unable to load DBPH warehouse inventory.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [reportYear]);
 
   useEffect(() => {
     load();
@@ -383,6 +411,29 @@ export function WarehouseInventoryPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function downloadMonthlyReport(month: number) {
+    setDownloadingReport(month);
+    try {
+      const response = await fetch(`/api/warehouse-inventory/monthly-reports/${reportYear}/${month}`);
+      if (!response.ok) {
+        const body = await response.json();
+        setMessage(body.error ?? "Unable to download monthly report.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `DBPH_WH_Monthly_Report_${reportYear}-${String(month).padStart(2, "0")}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setMessage("Unable to download monthly report.");
+    } finally {
+      setDownloadingReport(0);
+    }
+  }
+
   return (
     <>
       <PageHeader title="DBPH WH Inventory">
@@ -477,7 +528,8 @@ export function WarehouseInventoryPage() {
         })}
       </div>
 
-      <section className="mt-5 overflow-hidden border border-line bg-white shadow-soft">
+      <div className="mt-5 grid items-start gap-4 2xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
+      <section className="overflow-hidden border border-line bg-white shadow-soft">
         <div className="border-b border-line bg-yellow-300 px-4 py-3">
           <h2 className="text-lg font-bold italic text-ink">DREAMBIKE PH</h2>
           <p className="mt-1 text-sm font-semibold text-ink">Month End Inventory {monthEndLabel}</p>
@@ -564,6 +616,55 @@ export function WarehouseInventoryPage() {
           </table>
         </div>
       </section>
+
+      <section className="overflow-hidden border border-line bg-white shadow-soft">
+        <div className="border-b border-line bg-slate-100 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="text-blue-700" size={18} />
+            <h2 className="font-semibold text-ink">Monthly Report {reportYear}</h2>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">Reports become available after the month-end snapshot.</p>
+        </div>
+        <div className="overflow-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-white text-xs uppercase text-slate-600">
+              <tr>
+                <th className="border-b border-line px-4 py-3">Month</th>
+                <th className="border-b border-line px-3 py-3">Status</th>
+                <th className="border-b border-line px-3 py-3 text-right">Report</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthNames.map((monthName, index) => {
+                const month = index + 1;
+                const report = monthlyReports.find((item) => item.report_month === month);
+                return (
+                  <tr key={monthName} className="odd:bg-white even:bg-slate-50">
+                    <td className="border-b border-line px-4 py-2.5 font-medium text-ink">{monthName}</td>
+                    <td className="border-b border-line px-3 py-2.5">
+                      <span className={`font-semibold ${report ? "text-emerald-700" : "text-slate-400"}`}>
+                        {report ? "Available" : "Pending"}
+                      </span>
+                    </td>
+                    <td className="border-b border-line px-3 py-2 text-right">
+                      <button
+                        disabled={!report || downloadingReport === month}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-semibold text-blue-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                        title={report ? `Download ${monthName} report` : `${monthName} report is not available yet`}
+                        onClick={() => downloadMonthlyReport(month)}
+                      >
+                        <Download size={14} />
+                        {downloadingReport === month ? "Preparing" : "Download"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      </div>
 
       {showSummary ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink/35 p-4">
