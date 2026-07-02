@@ -106,7 +106,11 @@ function csvCell(value: unknown) {
 
 export function WarehouseInventoryPage() {
   const [rows, setRows] = useState<WarehouseInventoryRecord[]>([]);
-  const [search, setSearch] = useState("");
+  const [warehouseSearches, setWarehouseSearches] = useState<Record<WarehouseName, string>>({
+    "DB1 WAREHOUSE": "",
+    "DB2 WAREHOUSE": ""
+  });
+  const [monthEndSearch, setMonthEndSearch] = useState("");
   const [editing, setEditing] = useState<Partial<WarehouseInventoryRecord> | null>(null);
   const [deleting, setDeleting] = useState<WarehouseInventoryRecord | null>(null);
   const [selling, setSelling] = useState<WarehouseInventoryRecord | null>(null);
@@ -214,16 +218,23 @@ export function WarehouseInventoryPage() {
     totalValue: availableRows.reduce((sum, row) => sum + Number(row.cost ?? 0), 0)
   }), [availableRows]);
 
-  const visibleRows = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((row) =>
-      [row.model, row.color, row.engine_number, row.chassis_number, row.orcr, rowStatus(row), row.date_out]
+  const visibleSummary = useMemo(() => {
+    const needle = monthEndSearch.trim().toLowerCase();
+    if (!needle) return summary;
+    return summary.filter((row) =>
+      [row.model, row.color]
         .join(" ")
         .toLowerCase()
         .includes(needle)
     );
-  }, [rows, search]);
+  }, [monthEndSearch, summary]);
+
+  const visibleSummaryTotals = useMemo(() => ({
+    db1: visibleSummary.reduce((total, row) => total + row.db1, 0),
+    db2: visibleSummary.reduce((total, row) => total + row.db2, 0),
+    total: visibleSummary.reduce((total, row) => total + row.total, 0),
+    totalValue: visibleSummary.reduce((total, row) => total + row.totalValue, 0)
+  }), [visibleSummary]);
 
   const monthEndLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" })
     .format(new Date())
@@ -251,8 +262,18 @@ export function WarehouseInventoryPage() {
 
   function sortedWarehouseRows(warehouse: WarehouseName) {
     const sort = sorts[warehouse];
-    return visibleRows
+    const needle = warehouseSearches[warehouse].trim().toLowerCase();
+    return rows
       .filter((row) => row.warehouse === warehouse)
+      .filter((row) => !needle || [
+        row.model,
+        row.color,
+        row.engine_number,
+        row.chassis_number,
+        row.orcr,
+        rowStatus(row),
+        row.date_out
+      ].join(" ").toLowerCase().includes(needle))
       .sort((a, b) => {
         const aValue = sort.key === "status" ? rowStatus(a) : a[sort.key];
         const bValue = sort.key === "status" ? rowStatus(b) : b[sort.key];
@@ -447,13 +468,6 @@ export function WarehouseInventoryPage() {
         </button>
       </PageHeader>
 
-      <div className="mb-4 rounded-lg border border-line bg-white p-3 shadow-soft">
-        <label className="relative block">
-          <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={17} />
-          <input className="w-full pl-9" placeholder="Search model, color, engine, chassis, status, or date" value={search} onChange={(event) => setSearch(event.target.value)} />
-        </label>
-      </div>
-
       {message ? <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">{message}</div> : null}
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -466,12 +480,28 @@ export function WarehouseInventoryPage() {
               <div className="flex items-center justify-between border-b border-line bg-slate-100 px-4 py-3">
                 <div>
                   <h2 className="font-semibold text-ink">{warehouse}</h2>
-                  <p className="text-xs text-slate-500">{warehouseRows.length} records</p>
+                  <p className="text-xs text-slate-500">
+                    {warehouseRows.length} displayed / {rows.filter((row) => row.warehouse === warehouse).length} records
+                  </p>
                 </div>
                 <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => setEditing(emptyRecord(warehouse))}>
                   <Plus size={16} />
                   Add Unit
                 </button>
+              </div>
+              <div className="border-b border-line bg-white p-3">
+                <label className="relative block">
+                  <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={17} />
+                  <input
+                    className="w-full pl-9"
+                    placeholder={`Search ${warehouseShortName(warehouse)} model, color, engine, chassis, status, or date`}
+                    value={warehouseSearches[warehouse]}
+                    onChange={(event) => setWarehouseSearches((current) => ({
+                      ...current,
+                      [warehouse]: event.target.value
+                    }))}
+                  />
+                </label>
               </div>
 
               <div className="table-scroll max-h-[480px] overflow-auto">
@@ -530,9 +560,20 @@ export function WarehouseInventoryPage() {
 
       <div className="mt-5 grid items-start gap-4 2xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
       <section className="overflow-hidden border border-line bg-white shadow-soft">
-        <div className="border-b border-line bg-yellow-300 px-4 py-3">
-          <h2 className="text-lg font-bold italic text-ink">DREAMBIKE PH</h2>
-          <p className="mt-1 text-sm font-semibold text-ink">Month End Inventory {monthEndLabel}</p>
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line bg-yellow-300 px-4 py-3">
+          <div>
+            <h2 className="text-lg font-bold italic text-ink">DREAMBIKE PH</h2>
+            <p className="mt-1 text-sm font-semibold text-ink">Month End Inventory {monthEndLabel}</p>
+          </div>
+          <label className="relative block w-full sm:w-80">
+            <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-500" size={17} />
+            <input
+              className="w-full border-yellow-500 bg-white pl-9"
+              placeholder="Search month-end model or color"
+              value={monthEndSearch}
+              onChange={(event) => setMonthEndSearch(event.target.value)}
+            />
+          </label>
         </div>
         <div className="table-scroll overflow-auto">
           <table className="min-w-[900px] border-separate border-spacing-0 text-left text-sm">
@@ -579,7 +620,7 @@ export function WarehouseInventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {summary.length ? summary.map((item) => (
+              {visibleSummary.length ? visibleSummary.map((item) => (
                 <tr key={item.key} className="odd:bg-white even:bg-slate-50">
                   <td className="border-b border-r border-line px-3 py-2 font-semibold text-ink">{item.model}</td>
                   <td className="border-b border-r border-line px-3 py-2">{item.color}</td>
@@ -606,11 +647,11 @@ export function WarehouseInventoryPage() {
               )}
               <tr className="bg-yellow-100 font-bold text-ink">
                 <td className="border-r border-line px-3 py-3" colSpan={2}>TOTAL</td>
-                <td className="border-r border-line px-3 py-3 text-center">{summaryTotals.db1}</td>
-                <td className="border-r border-line px-3 py-3 text-center">{summaryTotals.db2}</td>
-                <td className="border-r border-line px-3 py-3 text-center">{summaryTotals.total}</td>
+                <td className="border-r border-line px-3 py-3 text-center">{visibleSummaryTotals.db1}</td>
+                <td className="border-r border-line px-3 py-3 text-center">{visibleSummaryTotals.db2}</td>
+                <td className="border-r border-line px-3 py-3 text-center">{visibleSummaryTotals.total}</td>
                 <td className="border-r border-line px-3 py-3 text-center">-</td>
-                <td className="px-3 py-3 text-right">{formatMoney(summaryTotals.totalValue)}</td>
+                <td className="px-3 py-3 text-right">{formatMoney(visibleSummaryTotals.totalValue)}</td>
               </tr>
             </tbody>
           </table>

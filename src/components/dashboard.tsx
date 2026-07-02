@@ -5,15 +5,34 @@ import { ClipboardCheck, Download, Package, ShieldCheck, Upload, Warehouse, X } 
 import { PageHeader } from "./page-header";
 import { getBrowserSupabaseClient } from "@/lib/supabase";
 
-const cards = [
-  ["totalOrcr", "Total ORCR Records", ClipboardCheck],
-  ["activeOrcrMonitoring", "Active ORCR Monitoring", ShieldCheck],
-  ["released", "Released ORCR / Plate", ClipboardCheck],
-  ["totalInventory", "Total SB Finance Units", Package],
-  ["available", "Available Inventory", Package],
-  ["sold", "Sold Units", Package],
-  ["dbphWh1", "Total Units in DBPH WH1", Warehouse],
-  ["dbphWh2", "Total Units in DBPH WH2", Warehouse]
+const dashboardSections = [
+  {
+    title: "ORCR Monitoring",
+    description: "Current ORCR and plate records",
+    cards: [
+      ["totalOrcr", "Total ORCR Records", ClipboardCheck],
+      ["activeOrcrMonitoring", "Active Monitoring", ShieldCheck],
+      ["released", "Released ORCR / Plate", ClipboardCheck]
+    ]
+  },
+  {
+    title: "SB Finance Units",
+    description: "Inventory and sold-unit totals",
+    cards: [
+      ["totalInventory", "Total SB Finance Units", Package],
+      ["available", "Available Inventory", Package],
+      ["sold", "Sold Units", Package]
+    ]
+  },
+  {
+    title: "DBPH WH Inventory",
+    description: "Available units across both warehouses",
+    cards: [
+      ["dbphWhTotal", "Total WH Units", Warehouse],
+      ["dbphWh1", "DBPH WH1 Units", Warehouse],
+      ["dbphWh2", "DBPH WH2 Units", Warehouse]
+    ]
+  }
 ] as const;
 
 type SystemBackup = {
@@ -57,6 +76,7 @@ export function Dashboard() {
         totalInventory: inventoryRows.length,
         available: inventoryRows.filter((row) => row.main_status !== "SOLD").length,
         sold: inventoryRows.filter((row) => row.main_status === "SOLD").length,
+        dbphWhTotal: warehouseRows.filter((row) => row.status !== "SOLD").length,
         dbphWh1: warehouseRows.filter((row) => row.warehouse === "DB1 WAREHOUSE" && row.status !== "SOLD").length,
         dbphWh2: warehouseRows.filter((row) => row.warehouse === "DB2 WAREHOUSE" && row.status !== "SOLD").length
       });
@@ -150,15 +170,25 @@ export function Dashboard() {
       </PageHeader>
       {error ? <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div> : null}
       {backupMessage ? <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">{backupMessage}</div> : null}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {cards.map(([key, label, Icon]) => (
-          <div key={key} className="rounded-lg border border-line bg-white p-5 shadow-soft">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-500">{label}</p>
-              <Icon className="text-blue-600" size={20} />
+      <div className="grid gap-5 xl:grid-cols-3">
+        {dashboardSections.map((section) => (
+          <section key={section.title} className="min-w-0 border-t-4 border-blue-600 bg-slate-100/70 p-4">
+            <div className="mb-3">
+              <h2 className="font-semibold text-ink">{section.title}</h2>
+              <p className="mt-1 text-xs text-slate-500">{section.description}</p>
             </div>
-            <p className="text-3xl font-bold text-ink">{stats[key] ?? 0}</p>
-          </div>
+            <div className="grid gap-3">
+              {section.cards.map(([key, label, Icon]) => (
+                <div key={key} className="rounded-lg border border-line bg-white p-4 shadow-soft">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-500">{label}</p>
+                    <Icon className="text-blue-600" size={19} />
+                  </div>
+                  <p className="text-3xl font-bold text-ink">{stats[key] ?? 0}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         ))}
       </div>
       <div className="mt-5 rounded-lg border border-line bg-white p-5 shadow-soft">
