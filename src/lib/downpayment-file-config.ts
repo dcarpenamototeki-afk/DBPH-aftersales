@@ -32,7 +32,7 @@ export const downpaymentTextFields: Record<DownpaymentFieldKey, DownpaymentTextF
   totalPurchasePrice: { x: 159, y: 482, maxWidth: 94, size: 10.5 },
   downPaymentReceived: { x: 206, y: 463, maxWidth: 78, size: 10.5 },
   yearModel: { x: 351, y: 595, maxWidth: 113, size: 10.5 },
-  brandSeriesColor: { x: 297, y: 571, maxWidth: 174, size: 10 },
+  brandSeriesColor: { x: 297, y: 560, maxWidth: 174, size: 10 },
   engineNumber: { x: 367, y: 544, maxWidth: 106, size: 10 },
   chassisNumber: { x: 373, y: 522, maxWidth: 100, size: 10 },
   signatureName: { x: 93, y: 139, maxWidth: 163, size: 10.5 }
