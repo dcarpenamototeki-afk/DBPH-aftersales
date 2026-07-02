@@ -1,0 +1,2 @@
+drop index if exists public.dbph_warehouse_inventory_engine_unique_idx;
+drop index if exists public.dbph_warehouse_inventory_chassis_unique_idx;

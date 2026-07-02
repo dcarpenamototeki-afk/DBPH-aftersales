@@ -108,6 +108,7 @@ export type WarehouseInventoryRecord = {
   engine_number: string;
   chassis_number: string;
   orcr: "YES" | "NO";
+  cost: number;
   created_at: string;
   updated_at: string;
 };

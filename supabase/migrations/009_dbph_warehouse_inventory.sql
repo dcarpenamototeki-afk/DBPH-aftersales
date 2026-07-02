@@ -6,10 +6,12 @@ create table if not exists public.dbph_warehouse_inventory (
   engine_number text not null default '',
   chassis_number text not null default '',
   orcr text not null default 'NO',
+  cost numeric(14,2) not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint dbph_warehouse_check check (warehouse in ('DB1 WAREHOUSE', 'DB2 WAREHOUSE')),
-  constraint dbph_warehouse_orcr_check check (orcr in ('YES', 'NO'))
+  constraint dbph_warehouse_orcr_check check (orcr in ('YES', 'NO')),
+  constraint dbph_warehouse_cost_check check (cost >= 0)
 );
 
 drop trigger if exists set_dbph_warehouse_inventory_updated_at on public.dbph_warehouse_inventory;
@@ -21,12 +23,6 @@ create index if not exists dbph_warehouse_inventory_warehouse_idx
   on public.dbph_warehouse_inventory (warehouse);
 create index if not exists dbph_warehouse_inventory_model_idx
   on public.dbph_warehouse_inventory using gin (to_tsvector('simple', model));
-create unique index if not exists dbph_warehouse_inventory_engine_unique_idx
-  on public.dbph_warehouse_inventory (lower(engine_number))
-  where trim(engine_number) <> '';
-create unique index if not exists dbph_warehouse_inventory_chassis_unique_idx
-  on public.dbph_warehouse_inventory (lower(chassis_number))
-  where trim(chassis_number) <> '';
 
 alter table public.dbph_warehouse_inventory enable row level security;
 
