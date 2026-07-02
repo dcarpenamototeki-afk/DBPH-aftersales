@@ -54,6 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <NavLink href="/create-ca" label="Create C.A" icon={FileSignature} inset />
               <NavLink href="/downpayment-file" label="Downpayment File" icon={ReceiptText} inset />
               <NavLink href="/catalog-card-maker" label="Catalog Card Maker" icon={FileImage} inset />
+              <NavLink href="/ltms-filler" label="LTMS Form Filler" icon={FileText} inset />
             </div>
           </details>
 
@@ -70,7 +71,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="mt-2">
             <NavLink href="/warehouse-inventory" label="DBPH WH Inventory" icon={Boxes} />
-            <NavLink href="/ltms-filler" label="LTMS Form Filler" icon={FileText} />
             <NavLink href="/import" label="Import" icon={Import} />
             <NavLink href="/audit-log" label="Audit Log" icon={History} />
             <AccountMenu />
