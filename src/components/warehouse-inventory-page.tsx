@@ -129,9 +129,10 @@ export function WarehouseInventoryPage() {
       total: number;
       db1: number;
       db2: number;
+      cost: number;
       totalValue: number;
     }>();
-    availableRows.forEach((row) => {
+    rows.forEach((row) => {
       const key = `${row.model}\u0000${row.color}`;
       const current = counts.get(key) ?? {
         key,
@@ -140,17 +141,19 @@ export function WarehouseInventoryPage() {
         total: 0,
         db1: 0,
         db2: 0,
+        cost: Number(row.cost ?? 0),
         totalValue: 0
       };
-      current.total += 1;
-      current.totalValue += Number(row.cost ?? 0);
-      if (row.warehouse === "DB1 WAREHOUSE") current.db1 += 1;
-      if (row.warehouse === "DB2 WAREHOUSE") current.db2 += 1;
+      if (rowStatus(row) === "AVAIL") {
+        current.total += 1;
+        current.totalValue += Number(row.cost ?? 0);
+        if (row.warehouse === "DB1 WAREHOUSE") current.db1 += 1;
+        if (row.warehouse === "DB2 WAREHOUSE") current.db2 += 1;
+      }
       counts.set(key, current);
     });
 
     return Array.from(counts.values())
-      .map((item) => ({ ...item, cost: item.total ? item.totalValue / item.total : 0 }))
       .sort((a, b) => {
         const aValue = a[summarySort.key];
         const bValue = b[summarySort.key];
@@ -159,7 +162,7 @@ export function WarehouseInventoryPage() {
           : String(aValue).localeCompare(String(bValue), undefined, { numeric: true, sensitivity: "base" });
         return summarySort.direction === "asc" ? comparison : -comparison;
       });
-  }, [availableRows, summarySort]);
+  }, [rows, summarySort]);
 
   const modelSummary = useMemo(() => {
     const counts = new Map<string, { model: string; colors: Set<string>; db1: number; db2: number; total: number }>();
