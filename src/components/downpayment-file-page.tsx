@@ -93,20 +93,24 @@ export function DownpaymentFilePage() {
 
       Object.entries(downpaymentTextFields).forEach(([key, field]) => {
         const text = (values[key] ?? "").trim().toUpperCase();
+        const size = fitText(font, text, field);
+        const textWidth = font.widthOfTextAtSize(text, size);
         page.drawText(text, {
-          x: field.x,
+          x: field.x + Math.max(0, (field.maxWidth - textWidth) / 2),
           y: field.y,
-          size: fitText(font, text, field),
+          size,
           font,
           color: rgb(0.03, 0.03, 0.03)
         });
       });
 
       const signatureDate = formatDate(form.date);
+      const signatureDateSize = fitText(font, signatureDate, signatureDateField);
+      const signatureDateWidth = font.widthOfTextAtSize(signatureDate, signatureDateSize);
       page.drawText(signatureDate, {
-        x: signatureDateField.x,
+        x: signatureDateField.x + Math.max(0, (signatureDateField.maxWidth - signatureDateWidth) / 2),
         y: signatureDateField.y,
-        size: fitText(font, signatureDate, signatureDateField),
+        size: signatureDateSize,
         font,
         color: rgb(0.03, 0.03, 0.03)
       });
