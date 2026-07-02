@@ -100,6 +100,18 @@ export type TooStatusRecord = {
   updated_at: string;
 };
 
+export type WarehouseInventoryRecord = {
+  id: string;
+  warehouse: "DB1 WAREHOUSE" | "DB2 WAREHOUSE";
+  model: string;
+  color: string;
+  engine_number: string;
+  chassis_number: string;
+  orcr: "YES" | "NO";
+  created_at: string;
+  updated_at: string;
+};
+
 export type ModuleKey = "orcr" | "sales" | "inventory" | "unidentifiedPlates";
 
 export type ColumnDef<T> = {
