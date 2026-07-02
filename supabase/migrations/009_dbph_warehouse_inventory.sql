@@ -7,11 +7,14 @@ create table if not exists public.dbph_warehouse_inventory (
   chassis_number text not null default '',
   orcr text not null default 'NO',
   cost numeric(14,2) not null default 0,
+  status text not null default 'AVAIL',
+  date_out date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint dbph_warehouse_check check (warehouse in ('DB1 WAREHOUSE', 'DB2 WAREHOUSE')),
   constraint dbph_warehouse_orcr_check check (orcr in ('YES', 'NO')),
-  constraint dbph_warehouse_cost_check check (cost >= 0)
+  constraint dbph_warehouse_cost_check check (cost >= 0),
+  constraint dbph_warehouse_status_check check (status in ('AVAIL', 'SOLD'))
 );
 
 drop trigger if exists set_dbph_warehouse_inventory_updated_at on public.dbph_warehouse_inventory;

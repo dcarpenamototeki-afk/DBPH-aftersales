@@ -109,6 +109,8 @@ export type WarehouseInventoryRecord = {
   chassis_number: string;
   orcr: "YES" | "NO";
   cost: number;
+  status: "AVAIL" | "SOLD";
+  date_out: string | null;
   created_at: string;
   updated_at: string;
 };

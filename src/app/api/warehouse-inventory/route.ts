@@ -3,7 +3,7 @@ import { createRecord, listRecords } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-const searchable = ["warehouse", "model", "color", "engine_number", "chassis_number", "orcr"];
+const searchable = ["warehouse", "model", "color", "engine_number", "chassis_number", "orcr", "status"];
 
 export async function GET(request: NextRequest) {
   return listRecords(request, "dbph_warehouse_inventory", searchable);
