@@ -18,14 +18,13 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import type { ColumnDef, WarehouseInventoryRecord } from "@/lib/types";
+import type { WarehouseInventoryRecord } from "@/lib/types";
 import { ConfirmDialog } from "./confirm-dialog";
 import { PageHeader } from "./page-header";
-import { RecordFormModal } from "./record-form-modal";
 import { StatusBadge } from "./status-badge";
 
 type WarehouseName = WarehouseInventoryRecord["warehouse"];
-type SortKey = "model" | "color" | "engine_number" | "chassis_number" | "orcr" | "status" | "date_out";
+type SortKey = "model" | "color" | "engine_number" | "chassis_number" | "orcr" | "status" | "date_out" | "customer_name";
 type SortState = { key: SortKey; direction: "asc" | "desc" };
 type SummarySortKey = "model" | "color" | "db1" | "db2" | "total" | "cost" | "totalValue";
 type SummarySortState = { key: SummarySortKey; direction: "asc" | "desc" };
@@ -58,16 +57,8 @@ const sortableColumns: Array<{ key: SortKey; label: string }> = [
   { key: "chassis_number", label: "Chassis #" },
   { key: "orcr", label: "ORCR" },
   { key: "status", label: "Status" },
-  { key: "date_out", label: "Date Out" }
-];
-
-const columns: ColumnDef<WarehouseInventoryRecord>[] = [
-  { key: "warehouse", label: "Warehouse", type: "status", options: warehouses, required: true },
-  { key: "model", label: "Model", required: true },
-  { key: "color", label: "Color", required: true },
-  { key: "engine_number", label: "Engine Number", required: true },
-  { key: "chassis_number", label: "Chassis Number", required: true },
-  { key: "orcr", label: "ORCR", type: "status", options: ["YES", "NO"], required: true }
+  { key: "date_out", label: "Date Out" },
+  { key: "customer_name", label: "Customer Name" }
 ];
 
 function emptyRecord(warehouse: WarehouseName): Partial<WarehouseInventoryRecord> {
@@ -80,7 +71,8 @@ function emptyRecord(warehouse: WarehouseName): Partial<WarehouseInventoryRecord
     orcr: "NO",
     cost: 0,
     status: "AVAIL",
-    date_out: null
+    date_out: null,
+    customer_name: ""
   };
 }
 
@@ -115,6 +107,8 @@ export function WarehouseInventoryPage() {
   const [deleting, setDeleting] = useState<WarehouseInventoryRecord | null>(null);
   const [selling, setSelling] = useState<WarehouseInventoryRecord | null>(null);
   const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 10));
+  const [saleCustomerName, setSaleCustomerName] = useState("");
+  const [newModelApproved, setNewModelApproved] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [costDrafts, setCostDrafts] = useState<Record<string, string>>({});
   const [savingCost, setSavingCost] = useState("");
@@ -164,7 +158,7 @@ export function WarehouseInventoryPage() {
       cost: number;
       totalValue: number;
     }>();
-    rows.forEach((row) => {
+    availableRows.forEach((row) => {
       const key = `${row.model}\u0000${row.color}`;
       const current = counts.get(key) ?? {
         key,
@@ -176,12 +170,10 @@ export function WarehouseInventoryPage() {
         cost: Number(row.cost ?? 0),
         totalValue: 0
       };
-      if (rowStatus(row) === "AVAIL") {
-        current.total += 1;
-        current.totalValue += Number(row.cost ?? 0);
-        if (row.warehouse === "DB1 WAREHOUSE") current.db1 += 1;
-        if (row.warehouse === "DB2 WAREHOUSE") current.db2 += 1;
-      }
+      current.total += 1;
+      current.totalValue += Number(row.cost ?? 0);
+      if (row.warehouse === "DB1 WAREHOUSE") current.db1 += 1;
+      if (row.warehouse === "DB2 WAREHOUSE") current.db2 += 1;
       counts.set(key, current);
     });
 
@@ -194,7 +186,14 @@ export function WarehouseInventoryPage() {
           : String(aValue).localeCompare(String(bValue), undefined, { numeric: true, sensitivity: "base" });
         return summarySort.direction === "asc" ? comparison : -comparison;
       });
-  }, [rows, summarySort]);
+  }, [availableRows, summarySort]);
+
+  const existingModels = useMemo(() => Array.from(new Map(
+    rows
+      .map((row) => row.model.trim())
+      .filter(Boolean)
+      .map((model) => [model.toUpperCase(), model])
+  ).values()).sort((a, b) => a.localeCompare(b)), [rows]);
 
   const modelSummary = useMemo(() => {
     const counts = new Map<string, { model: string; colors: Set<string>; db1: number; db2: number; total: number }>();
@@ -272,7 +271,8 @@ export function WarehouseInventoryPage() {
         row.chassis_number,
         row.orcr,
         rowStatus(row),
-        row.date_out
+        row.date_out,
+        row.customer_name
       ].join(" ").toLowerCase().includes(needle))
       .sort((a, b) => {
         const aValue = sort.key === "status" ? rowStatus(a) : a[sort.key];
@@ -285,10 +285,42 @@ export function WarehouseInventoryPage() {
       });
   }
 
+  function openEditor(record: Partial<WarehouseInventoryRecord>) {
+    setEditing(record);
+    setNewModelApproved(Boolean(
+      record.id ||
+      existingModels.some((model) => model.toUpperCase() === String(record.model ?? "").trim().toUpperCase())
+    ));
+  }
+
+  function updateEditingModel(value: string) {
+    const exists = existingModels.some((model) => model.toUpperCase() === value.trim().toUpperCase());
+    setEditing((current) => ({ ...(current ?? {}), model: value }));
+    setNewModelApproved(exists);
+  }
+
+  function approveNewModel() {
+    const model = String(editing?.model ?? "").trim().toUpperCase();
+    if (!model) return;
+    setEditing((current) => ({ ...(current ?? {}), model }));
+    setNewModelApproved(true);
+  }
+
   async function save() {
     if (!editing) return;
     if (!editing.model || !editing.color || !editing.engine_number || !editing.chassis_number) {
       setMessage("Please complete the model, color, engine number, and chassis number.");
+      return;
+    }
+    if (editing.status === "SOLD" && !String(editing.customer_name ?? "").trim()) {
+      setMessage("Customer Name is required for sold units.");
+      return;
+    }
+    const modelExists = existingModels.some(
+      (model) => model.toUpperCase() === String(editing.model).trim().toUpperCase()
+    );
+    if (!modelExists && !newModelApproved) {
+      setMessage('This is a new model. Click "Add Model" before saving the unit.');
       return;
     }
 
@@ -303,7 +335,8 @@ export function WarehouseInventoryPage() {
       ...editing,
       cost: Number(matchingGroup?.cost ?? (groupChanged ? 0 : editing.cost ?? 0)),
       status: editing.status ?? "AVAIL",
-      date_out: editing.status === "SOLD" ? editing.date_out : null
+      date_out: editing.status === "SOLD" ? editing.date_out : null,
+      customer_name: editing.status === "SOLD" ? String(editing.customer_name ?? "") : ""
     };
 
     const response = await fetch(editing.id ? `/api/warehouse-inventory/${editing.id}` : "/api/warehouse-inventory", {
@@ -317,6 +350,7 @@ export function WarehouseInventoryPage() {
       return;
     }
     setEditing(null);
+    setNewModelApproved(false);
     setMessage("Warehouse unit saved.");
     await load();
   }
@@ -348,11 +382,14 @@ export function WarehouseInventoryPage() {
   }
 
   async function markSold() {
-    if (!selling || !saleDate) return;
+    if (!selling || !saleDate || !saleCustomerName.trim()) {
+      setMessage("Date Out and Customer Name are required.");
+      return;
+    }
     const response = await fetch(`/api/warehouse-inventory/${selling.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "SOLD", date_out: saleDate })
+      body: JSON.stringify({ status: "SOLD", date_out: saleDate, customer_name: saleCustomerName })
     });
     const body = await response.json();
     if (!response.ok) {
@@ -360,6 +397,7 @@ export function WarehouseInventoryPage() {
       return;
     }
     setSelling(null);
+    setSaleCustomerName("");
     setMessage(`${selling.model} marked as SOLD.`);
     await load();
   }
@@ -368,7 +406,7 @@ export function WarehouseInventoryPage() {
     const response = await fetch(`/api/warehouse-inventory/${row.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "AVAIL", date_out: null })
+      body: JSON.stringify({ status: "AVAIL", date_out: null, customer_name: "" })
     });
     const body = await response.json();
     setMessage(body.error ?? `${row.model} returned to available inventory.`);
@@ -420,8 +458,8 @@ export function WarehouseInventoryPage() {
       ["TOTAL", "", summaryTotals.db1, summaryTotals.db2, summaryTotals.total, "", summaryTotals.totalValue],
       [],
       ["SOLD UNITS LOG"],
-      ["Date Out", "Warehouse", "Model", "Color", "Engine #", "Chassis #", "ORCR", "Cost"],
-      ...soldRows.map((row) => [row.date_out ?? "", row.warehouse, row.model, row.color, row.engine_number, row.chassis_number, row.orcr, Number(row.cost ?? 0)])
+      ["Date Out", "Customer Name", "Warehouse", "Model", "Color", "Engine #", "Chassis #", "ORCR", "Cost"],
+      ...soldRows.map((row) => [row.date_out ?? "", row.customer_name ?? "", row.warehouse, row.model, row.color, row.engine_number, row.chassis_number, row.orcr, Number(row.cost ?? 0)])
     ];
     const csv = report.map((line) => line.map(csvCell).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -484,7 +522,7 @@ export function WarehouseInventoryPage() {
                     {warehouseRows.length} displayed / {rows.filter((row) => row.warehouse === warehouse).length} records
                   </p>
                 </div>
-                <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => setEditing(emptyRecord(warehouse))}>
+                <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => openEditor(emptyRecord(warehouse))}>
                   <Plus size={16} />
                   Add Unit
                 </button>
@@ -505,7 +543,7 @@ export function WarehouseInventoryPage() {
               </div>
 
               <div className="table-scroll max-h-[480px] overflow-auto">
-                <table className="min-w-[1080px] border-separate border-spacing-0 text-left text-sm">
+                <table className="min-w-[1240px] border-separate border-spacing-0 text-left text-sm">
                   <thead className="sticky top-0 z-10 bg-white text-xs uppercase text-slate-600">
                     <tr>
                       {sortableColumns.map((column) => (
@@ -521,7 +559,7 @@ export function WarehouseInventoryPage() {
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td className="px-3 py-6 text-slate-500" colSpan={8}>Loading units...</td></tr>
+                      <tr><td className="px-3 py-6 text-slate-500" colSpan={9}>Loading units...</td></tr>
                     ) : warehouseRows.length ? warehouseRows.map((row) => {
                       const status = rowStatus(row);
                       return (
@@ -533,22 +571,23 @@ export function WarehouseInventoryPage() {
                           <td className="whitespace-nowrap border-b border-line px-3 py-2"><StatusBadge value={row.orcr} /></td>
                           <td className="whitespace-nowrap border-b border-line px-3 py-2"><StatusBadge value={status} /></td>
                           <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.date_out || "-"}</td>
+                          <td className="max-w-48 truncate whitespace-nowrap border-b border-line px-3 py-2" title={row.customer_name || ""}>{status === "SOLD" ? row.customer_name || "-" : "-"}</td>
                           <td className="sticky right-0 whitespace-nowrap border-b border-line bg-inherit px-3 py-2">
                             <div className="flex gap-1">
                               <button disabled={status === "SOLD"} title={`Transfer to ${target} Warehouse`} className="rounded-md p-2 text-emerald-700 hover:bg-emerald-50 disabled:opacity-25" onClick={() => transfer(row)}><ArrowLeftRight size={16} /></button>
                               {status === "AVAIL" ? (
-                                <button title="Mark Sold" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => setSelling(row)}><PackageMinus size={16} /></button>
+                                <button title="Mark Sold" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => { setSelling(row); setSaleCustomerName(""); }}><PackageMinus size={16} /></button>
                               ) : (
                                 <button title="Return to Available" className="rounded-md p-2 text-emerald-700 hover:bg-emerald-50" onClick={() => markAvailable(row)}><RotateCcw size={16} /></button>
                               )}
-                              <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => setEditing(row)}><FilePenLine size={16} /></button>
+                              <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => openEditor(row)}><FilePenLine size={16} /></button>
                               <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => setDeleting(row)}><Trash2 size={16} /></button>
                             </div>
                           </td>
                         </tr>
                       );
                     }) : (
-                      <tr><td className="px-3 py-6 text-slate-500" colSpan={8}>No units in this warehouse.</td></tr>
+                      <tr><td className="px-3 py-6 text-slate-500" colSpan={9}>No units in this warehouse.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -758,7 +797,16 @@ export function WarehouseInventoryPage() {
               <button aria-label="Close" className="rounded-md p-1 hover:bg-slate-100" onClick={() => setSelling(null)}><X size={18} /></button>
             </div>
             <div className="p-5">
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700">Date Out<input type="date" value={saleDate} onChange={(event) => setSaleDate(event.target.value)} /></label>
+              <div className="grid gap-4">
+                <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                  Date Out
+                  <input required type="date" value={saleDate} onChange={(event) => setSaleDate(event.target.value)} />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                  Customer Name
+                  <input required value={saleCustomerName} onChange={(event) => setSaleCustomerName(event.target.value)} placeholder="Enter customer name" />
+                </label>
+              </div>
             </div>
             <div className="flex justify-end gap-2 border-t border-line px-5 py-4">
               <button className="rounded-md border border-line px-3 py-2 text-sm font-medium" onClick={() => setSelling(null)}>Cancel</button>
@@ -768,7 +816,86 @@ export function WarehouseInventoryPage() {
         </div>
       ) : null}
 
-      {editing ? <RecordFormModal title="Warehouse Unit Details" columns={columns} values={editing} onChange={(key, value) => setEditing((current) => ({ ...(current ?? {}), [key]: value }))} onClose={() => setEditing(null)} onSubmit={save} /> : null}
+      {editing ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-ink/35 p-4">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg bg-white shadow-soft">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <div>
+                <h3 className="font-semibold text-ink">Warehouse Unit Details</h3>
+                <p className="mt-1 text-sm text-slate-500">{editing.id ? "Edit the selected warehouse record." : "Add a unit using an existing model or approve a new model."}</p>
+              </div>
+              <button aria-label="Close" className="rounded-md p-1 hover:bg-slate-100" onClick={() => { setEditing(null); setNewModelApproved(false); }}><X size={18} /></button>
+            </div>
+            <div className="grid max-h-[70vh] gap-4 overflow-y-auto p-5 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                Warehouse
+                <select value={editing.warehouse ?? ""} onChange={(event) => setEditing((current) => ({ ...(current ?? {}), warehouse: event.target.value as WarehouseName }))}>
+                  {warehouses.map((warehouse) => <option key={warehouse} value={warehouse}>{warehouse}</option>)}
+                </select>
+              </label>
+
+              <div className="grid gap-1.5 text-sm font-medium text-slate-700">
+                <label htmlFor="warehouse-model">Model</label>
+                <input
+                  id="warehouse-model"
+                  list="warehouse-model-suggestions"
+                  required
+                  value={editing.model ?? ""}
+                  onChange={(event) => updateEditingModel(event.target.value)}
+                  placeholder="Type or select a model"
+                />
+                <datalist id="warehouse-model-suggestions">
+                  {existingModels.map((model) => <option key={model} value={model} />)}
+                </datalist>
+                {String(editing.model ?? "").trim() && !existingModels.some(
+                  (model) => model.toUpperCase() === String(editing.model ?? "").trim().toUpperCase()
+                ) ? (
+                  newModelApproved ? (
+                    <p className="text-xs font-medium text-emerald-700">New model approved for this entry.</p>
+                  ) : (
+                    <button className="w-fit rounded-md border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700" type="button" onClick={approveNewModel}>
+                      <Plus className="mr-1 inline" size={13} />
+                      Add Model
+                    </button>
+                  )
+                ) : (
+                  <p className="text-xs font-normal text-slate-500">Suggestions use all existing warehouse models.</p>
+                )}
+              </div>
+
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                Color
+                <input required value={editing.color ?? ""} onChange={(event) => setEditing((current) => ({ ...(current ?? {}), color: event.target.value }))} />
+              </label>
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                Engine Number
+                <input required value={editing.engine_number ?? ""} onChange={(event) => setEditing((current) => ({ ...(current ?? {}), engine_number: event.target.value }))} />
+              </label>
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                Chassis Number
+                <input required value={editing.chassis_number ?? ""} onChange={(event) => setEditing((current) => ({ ...(current ?? {}), chassis_number: event.target.value }))} />
+              </label>
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                ORCR
+                <select value={editing.orcr ?? "NO"} onChange={(event) => setEditing((current) => ({ ...(current ?? {}), orcr: event.target.value as "YES" | "NO" }))}>
+                  <option value="NO">NO</option>
+                  <option value="YES">YES</option>
+                </select>
+              </label>
+              {editing.status === "SOLD" ? (
+                <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+                  Customer Name
+                  <input required value={editing.customer_name ?? ""} onChange={(event) => setEditing((current) => ({ ...(current ?? {}), customer_name: event.target.value }))} />
+                </label>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-line px-5 py-4">
+              <button className="rounded-md border border-line px-3 py-2 text-sm font-medium" onClick={() => { setEditing(null); setNewModelApproved(false); }}>Cancel</button>
+              <button className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={save}>Save Record</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {deleting ? <ConfirmDialog title="Delete warehouse unit" message={`Permanently delete ${deleting.model} with engine number ${deleting.engine_number}?`} onCancel={() => setDeleting(null)} onConfirm={remove} /> : null}
     </>
   );

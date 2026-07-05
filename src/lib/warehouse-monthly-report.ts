@@ -10,6 +10,7 @@ type WarehouseRow = {
   cost: number | string | null;
   status: string | null;
   date_out: string | null;
+  customer_name: string | null;
 };
 
 export type WarehouseMonthlyReportData = {
@@ -42,7 +43,7 @@ async function readWarehouseRows() {
   while (true) {
     const { data, error } = await supabase
       .from("dbph_warehouse_inventory")
-      .select("warehouse,model,color,engine_number,chassis_number,orcr,cost,status,date_out")
+      .select("warehouse,model,color,engine_number,chassis_number,orcr,cost,status,date_out,customer_name")
       .range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
     rows.push(...((data ?? []) as WarehouseRow[]));
@@ -60,6 +61,7 @@ export async function generateWarehouseMonthlyReport(year: number, month: number
   const groups = new Map<string, WarehouseMonthlyReportData["inventory"][number]>();
 
   for (const row of rows) {
+    if (row.status === "SOLD") continue;
     const key = `${row.model}\u0000${row.color}`;
     const current = groups.get(key) ?? {
       model: row.model,
@@ -70,12 +72,10 @@ export async function generateWarehouseMonthlyReport(year: number, month: number
       cost: Number(row.cost ?? 0),
       totalValue: 0
     };
-    if (row.status !== "SOLD") {
-      current.total += 1;
-      current.totalValue += Number(row.cost ?? 0);
-      if (row.warehouse === "DB1 WAREHOUSE") current.db1 += 1;
-      if (row.warehouse === "DB2 WAREHOUSE") current.db2 += 1;
-    }
+    current.total += 1;
+    current.totalValue += Number(row.cost ?? 0);
+    if (row.warehouse === "DB1 WAREHOUSE") current.db1 += 1;
+    if (row.warehouse === "DB2 WAREHOUSE") current.db2 += 1;
     groups.set(key, current);
   }
 
@@ -131,9 +131,10 @@ export function warehouseMonthlyReportCsv(data: WarehouseMonthlyReportData) {
     ["TOTAL", "", data.totals.db1, data.totals.db2, data.totals.total, "", data.totals.totalValue],
     [],
     ["UNITS SOLD DURING THE MONTH"],
-    ["Date Out", "Warehouse", "Model", "Color", "Engine #", "Chassis #", "ORCR", "Cost"],
+    ["Date Out", "Customer Name", "Warehouse", "Model", "Color", "Engine #", "Chassis #", "ORCR", "Cost"],
     ...data.sold.map((row) => [
       row.date_out,
+      row.customer_name ?? "",
       row.warehouse,
       row.model,
       row.color,

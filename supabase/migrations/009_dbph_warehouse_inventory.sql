@@ -9,6 +9,7 @@ create table if not exists public.dbph_warehouse_inventory (
   cost numeric(14,2) not null default 0,
   status text not null default 'AVAIL',
   date_out date,
+  customer_name text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint dbph_warehouse_check check (warehouse in ('DB1 WAREHOUSE', 'DB2 WAREHOUSE')),

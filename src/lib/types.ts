@@ -111,6 +111,7 @@ export type WarehouseInventoryRecord = {
   cost: number;
   status: "AVAIL" | "SOLD";
   date_out: string | null;
+  customer_name: string;
   created_at: string;
   updated_at: string;
 };
