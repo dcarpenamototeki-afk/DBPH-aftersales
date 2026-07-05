@@ -41,6 +41,20 @@ function isChecked(value: unknown) {
   return ["TRUE", "YES", "1"].includes(normalizeSheetValue(value));
 }
 
+function sheetErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error ?? "");
+}
+
+function isProtectedCellError(error: unknown) {
+  const message = sheetErrorMessage(error).toLowerCase();
+  return message.includes("protected cell") || message.includes("protected range") || message.includes("protected cell or object");
+}
+
+function invalidDataIndex(error: unknown) {
+  const match = sheetErrorMessage(error).match(/invalid data\[(\d+)\]/i);
+  return match ? Number(match[1]) : -1;
+}
+
 function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   const exact = findHeaderIndex(headers, aliases);
   if (exact >= 0) return exact;
@@ -206,14 +220,28 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
     [`${journal}!BX${journalRow}`, uppercase(form.waiver)],
     [`${journal}!BZ${journalRow}`, true]
   ];
+  const pending = [...entries];
+  const skipped: string[] = [];
 
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      valueInputOption: "USER_ENTERED",
-      data: entries.map(([range, value]) => ({ range, values: [[value]] }))
+  while (pending.length) {
+    try {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          valueInputOption: "USER_ENTERED",
+          data: pending.map(([range, value]) => ({ range, values: [[value]] }))
+        }
+      });
+      return skipped;
+    } catch (error) {
+      const index = invalidDataIndex(error);
+      const failedRange = pending[index]?.[0];
+      if (!isProtectedCellError(error) || index < 0 || !failedRange) throw error;
+      throw new Error(`Required sheet cell ${failedRange} is protected. Add the service account as an allowed editor for this protected range.`);
     }
-  });
+  }
+
+  return skipped;
 }
 
 async function rollbackRelease(journalRow: number, stockRow: number, unitCode: string) {
@@ -230,14 +258,21 @@ async function rollbackRelease(journalRow: number, stockRow: number, unitCode: s
     throw new Error("Rollback stopped because the journal row no longer belongs to this Unit Code.");
   }
 
-  await sheets.spreadsheets.values.batchClear({
-    spreadsheetId,
-    requestBody: {
-      ranges: mcReleaseConfig.journalWrittenColumns.map(
-        (column) => `${journal}!${column}${journalRow}`
-      )
+  const clearColumns = [
+    mcReleaseConfig.journalLookupColumn,
+    ...mcReleaseConfig.journalWrittenColumns.filter(
+      (column) => column !== mcReleaseConfig.journalLookupColumn
+    )
+  ];
+  for (const column of clearColumns) {
+    const range = `${journal}!${column}${journalRow}`;
+    try {
+      await sheets.spreadsheets.values.clear({ spreadsheetId, range });
+    } catch (error) {
+      if (isProtectedCellError(error) && column !== mcReleaseConfig.journalLookupColumn) continue;
+      throw error;
     }
-  });
+  }
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `${stocks}!${mcReleaseConfig.stockCheckboxColumn}${stockRow}`,
@@ -395,7 +430,7 @@ export async function POST(request: NextRequest) {
     if (!(await isJournalRowAvailable(journalRow))) {
       return jsonError("The selected MC Journal row was used by another entry. Please submit again.", 409);
     }
-    await writeRelease(form, motor, journalRow);
+    const skippedRanges = await writeRelease(form, motor, journalRow);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     let pdf: Uint8Array;
     try {
@@ -407,7 +442,8 @@ export async function POST(request: NextRequest) {
           saved: true,
           journalRow,
           stockRow: motor.sourceRow,
-          unitCode: form.unitCode
+          unitCode: form.unitCode,
+          skippedRanges
         },
         { status: 502 }
       );
@@ -418,7 +454,8 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="MC_Release_${form.unitCode}_${journalRow}.pdf"`,
         "X-Journal-Row": String(journalRow),
-        "X-Stock-Row": String(motor.sourceRow)
+        "X-Stock-Row": String(motor.sourceRow),
+        "X-Skipped-Ranges": skippedRanges.join(",")
       }
     });
   } catch (error) {
