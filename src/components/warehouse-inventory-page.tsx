@@ -195,6 +195,13 @@ export function WarehouseInventoryPage() {
       .map((model) => [model.toUpperCase(), model])
   ).values()).sort((a, b) => a.localeCompare(b)), [rows]);
 
+  const existingColors = useMemo(() => Array.from(new Map(
+    rows
+      .map((row) => row.color.trim())
+      .filter(Boolean)
+      .map((color) => [color.toUpperCase(), color])
+  ).values()).sort((a, b) => a.localeCompare(b)), [rows]);
+
   const modelSummary = useMemo(() => {
     const counts = new Map<string, { model: string; colors: Set<string>; db1: number; db2: number; total: number }>();
     availableRows.forEach((row) => {
@@ -865,7 +872,17 @@ export function WarehouseInventoryPage() {
 
               <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                 Color
-                <input required value={editing.color ?? ""} onChange={(event) => setEditing((current) => ({ ...(current ?? {}), color: event.target.value }))} />
+                <input
+                  required
+                  list="warehouse-color-suggestions"
+                  value={editing.color ?? ""}
+                  onChange={(event) => setEditing((current) => ({ ...(current ?? {}), color: event.target.value }))}
+                  placeholder="Type or select a color"
+                />
+                <datalist id="warehouse-color-suggestions">
+                  {existingColors.map((color) => <option key={color} value={color} />)}
+                </datalist>
+                <p className="text-xs font-normal text-slate-500">Suggestions use all existing warehouse colors.</p>
               </label>
               <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                 Engine Number

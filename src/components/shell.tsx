@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Boxes, ChevronDown, FileCheck2, FileImage, FileSignature, FileSpreadsheet, FileText, History, Import, PackageCheck, Radar, ReceiptText, RefreshCcw, Warehouse } from "lucide-react";
+import { BarChart3, Boxes, ChevronDown, FileCheck2, FileImage, FileSignature, FileSpreadsheet, FileText, FolderDown, History, Import, PackageCheck, Radar, ReceiptText, RefreshCcw, Warehouse } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { AuthGate } from "./auth-gate";
@@ -55,6 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <NavLink href="/downpayment-file" label="Downpayment File" icon={ReceiptText} inset />
               <NavLink href="/catalog-card-maker" label="Catalog Card Maker" icon={FileImage} inset />
               <NavLink href="/ltms-filler" label="LTMS Form Filler" icon={FileText} inset />
+              <NavLink href="/important-documents" label="Important Documents" icon={FolderDown} inset />
             </div>
           </details>
 
