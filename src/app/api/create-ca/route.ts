@@ -6,11 +6,11 @@ export const dynamic = "force-dynamic";
 
 const defaultAppsScriptUrl =
   "https://script.google.com/macros/s/AKfycbyDuS16lCVj4BA3wcr19WJX1QF7o7dTo7TBJTfUXOxBjcrwLsWcSsnRYOe_k8k44he0ug/exec";
+
 const paymentKeys: CaPaymentKey[] = [
   "downpayment",
   "reservation",
   "bankTransfer",
-  "swapUnit",
   "cash"
 ];
 
@@ -19,19 +19,22 @@ function uppercase(value: string) {
 }
 
 function money(value: string, options: { allowZero?: boolean; prefix?: string } = {}) {
-  const numeric = Number(String(value ?? "").replace(/[,\s₱Pp]/g, ""));
+  const numeric = Number(String(value ?? "").replace(/[,\sPp]/g, ""));
   if (!Number.isFinite(numeric)) return "";
   if (!numeric && !options.allowZero) return "";
   const formatted = numeric.toLocaleString("en-PH", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
   return `${options.prefix ?? ""}${formatted}`;
 }
 
-function paymentAmount(key: CaPaymentKey, value: string) {
-  if (key === "swapUnit") return uppercase(value);
-  return money(value);
+function agreedPrice(value: string) {
+  const cleaned = String(value ?? "").trim();
+  if (!cleaned) return "";
+  const numeric = Number(cleaned.replace(/[,\sPp]/g, ""));
+  if (Number.isFinite(numeric)) return money(cleaned, { allowZero: true, prefix: "P " });
+  return uppercase(cleaned);
 }
 
 function middleInitial(value: string) {
@@ -58,9 +61,9 @@ function getAppsScriptUrl() {
 function paymentValues(form: CaForm, key: CaPaymentKey) {
   const payment = form.payments[key] ?? { enabled: false, amount: "" };
   return {
-    yes: payment.enabled ? "✓" : "",
-    no: payment.enabled ? "" : "✓",
-    amount: payment.enabled ? paymentAmount(key, payment.amount) : ""
+    yes: payment.enabled ? "\u2713" : "",
+    no: payment.enabled ? "" : "\u2713",
+    amount: payment.enabled ? money(payment.amount) : ""
   };
 }
 
@@ -79,7 +82,6 @@ function createPlaceholderValues(form: CaForm) {
   const downpayment = paymentValues(form, "downpayment");
   const reservation = paymentValues(form, "reservation");
   const bankTransfer = paymentValues(form, "bankTransfer");
-  const swapUnit = paymentValues(form, "swapUnit");
   const cash = paymentValues(form, "cash");
 
   return {
@@ -93,8 +95,8 @@ function createPlaceholderValues(form: CaForm) {
     "{{MIDDLE_INITIAL}}": middleInitial(form.middleInitial),
     "{{ADDRESS}}": uppercase(form.completeAddress),
     "{{COMPLETE_ADDRESS}}": uppercase(form.completeAddress),
-    "{{AGREED_PRICE}}": money(form.agreedPrice, { allowZero: true, prefix: "P " }),
-    "{{PURCHASE_PRICE}}": money(form.agreedPrice, { allowZero: true, prefix: "P " }),
+    "{{AGREED_PRICE}}": agreedPrice(form.agreedPrice),
+    "{{PURCHASE_PRICE}}": agreedPrice(form.agreedPrice),
     "{{UNIT_DETAILS}}": uppercase(form.unitDetails),
     "{{UNIT_MODEL}}": uppercase(form.unitDetails),
     "{{UNIT_COLOR}}": uppercase(form.unitColor),
@@ -128,12 +130,6 @@ function createPlaceholderValues(form: CaForm) {
     "{{EWB_BANK_TRANSFER_YES}}": bankTransfer.yes,
     "{{EWB_BANK_TRANSFER_NO}}": bankTransfer.no,
     "{{EWB_BANK_TRANSFER_AMOUNT}}": bankTransfer.amount,
-    "{{SWAP_UNIT_YES}}": swapUnit.yes,
-    "{{SWAP_UNIT_NO}}": swapUnit.no,
-    "{{SWAP_UNIT_AMOUNT}}": swapUnit.amount,
-    "{{SWAP_YES}}": swapUnit.yes,
-    "{{SWAP_NO}}": swapUnit.no,
-    "{{SWAP_AMOUNT}}": swapUnit.amount,
     "{{CASH_YES}}": cash.yes,
     "{{CASH_NO}}": cash.no,
     "{{CASH_AMOUNT}}": cash.amount

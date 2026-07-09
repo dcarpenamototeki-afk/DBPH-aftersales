@@ -21,16 +21,14 @@ const emptyForm: CaForm = {
     downpayment: { enabled: false, amount: "" },
     reservation: { enabled: false, amount: "" },
     bankTransfer: { enabled: false, amount: "" },
-    swapUnit: { enabled: false, amount: "" },
     cash: { enabled: false, amount: "" }
   }
 };
 
-const payments: Array<{ key: CaPaymentKey; label: string; alphaNumeric?: boolean }> = [
+const payments: Array<{ key: CaPaymentKey; label: string }> = [
   { key: "downpayment", label: "Downpayment" },
   { key: "reservation", label: "TOO / REG" },
   { key: "bankTransfer", label: "EWB / Bank Transfer" },
-  { key: "swapUnit", label: "SWAP UNIT", alphaNumeric: true },
   { key: "cash", label: "Cash" }
 ];
 
@@ -75,7 +73,7 @@ export function CreateCaPage() {
 
   async function generate() {
     setLoading(true);
-    setMessage("");
+    setMessage("Generating C.A PDF. Google Docs may take a few seconds.");
     clearPdf();
     const response = await fetch("/api/create-ca", {
       method: "POST",
@@ -117,7 +115,7 @@ export function CreateCaPage() {
 
           <h3 className="mb-3 mt-5 font-semibold text-ink">Unit Details</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-sm font-medium text-slate-700">Agreed Price<input inputMode="decimal" placeholder="P 0.00" value={form.agreedPrice} onChange={(event) => setValue("agreedPrice", event.target.value)} /></label>
+            <label className="grid gap-1.5 text-sm font-medium text-slate-700">Agreed Price<input placeholder="P 0.00 or SWAP UNIT" value={form.agreedPrice} onChange={(event) => setValue("agreedPrice", event.target.value)} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Unit Details<input value={form.unitDetails} onChange={(event) => setValue("unitDetails", event.target.value)} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Unit Color<input value={form.unitColor} onChange={(event) => setValue("unitColor", event.target.value)} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Engine Number<input value={form.engineNumber} onChange={(event) => setValue("engineNumber", event.target.value)} /></label>
@@ -137,9 +135,9 @@ export function CreateCaPage() {
                   </label>
                   <input
                     disabled={!value.enabled}
-                    inputMode={payment.alphaNumeric ? "text" : "decimal"}
-                    min={payment.alphaNumeric ? undefined : "0"}
-                    placeholder={payment.alphaNumeric ? "Details / Value" : "Amount"}
+                    inputMode="decimal"
+                    min="0"
+                    placeholder="Amount"
                     type="text"
                     value={value.amount}
                     onChange={(event) => setPayment(payment.key, { amount: event.target.value })}

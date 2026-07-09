@@ -1,4 +1,4 @@
-export type CaPaymentKey = "downpayment" | "reservation" | "bankTransfer" | "swapUnit" | "cash";
+export type CaPaymentKey = "downpayment" | "reservation" | "bankTransfer" | "cash";
 
 export type CaForm = {
   surname: string;
@@ -21,6 +21,5 @@ export const caPaymentKeys: CaPaymentKey[] = [
   "downpayment",
   "reservation",
   "bankTransfer",
-  "swapUnit",
   "cash"
 ];
