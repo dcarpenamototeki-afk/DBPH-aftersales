@@ -10,6 +10,7 @@ const paymentKeys: CaPaymentKey[] = [
   "downpayment",
   "reservation",
   "bankTransfer",
+  "swapUnit",
   "cash"
 ];
 
@@ -17,14 +18,20 @@ function uppercase(value: string) {
   return String(value ?? "").trim().toUpperCase();
 }
 
-function money(value: string) {
-  const numeric = Number(String(value ?? "").replace(/,/g, ""));
-  return Number.isFinite(numeric) && numeric
-    ? numeric.toLocaleString("en-PH", {
+function money(value: string, options: { allowZero?: boolean; prefix?: string } = {}) {
+  const numeric = Number(String(value ?? "").replace(/[,\s₱Pp]/g, ""));
+  if (!Number.isFinite(numeric)) return "";
+  if (!numeric && !options.allowZero) return "";
+  const formatted = numeric.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-      })
-    : "";
+      });
+  return `${options.prefix ?? ""}${formatted}`;
+}
+
+function paymentAmount(key: CaPaymentKey, value: string) {
+  if (key === "swapUnit") return uppercase(value);
+  return money(value);
 }
 
 function middleInitial(value: string) {
@@ -53,7 +60,7 @@ function paymentValues(form: CaForm, key: CaPaymentKey) {
   return {
     yes: payment.enabled ? "✓" : "",
     no: payment.enabled ? "" : "✓",
-    amount: payment.enabled ? money(payment.amount) : ""
+    amount: payment.enabled ? paymentAmount(key, payment.amount) : ""
   };
 }
 
@@ -64,14 +71,15 @@ function createPlaceholderValues(form: CaForm) {
     uppercase(form.surname)
   ].filter(Boolean).join(" ");
   const date = new Date().toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "2-digit",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
     timeZone: "Asia/Manila"
   });
   const downpayment = paymentValues(form, "downpayment");
   const reservation = paymentValues(form, "reservation");
   const bankTransfer = paymentValues(form, "bankTransfer");
+  const swapUnit = paymentValues(form, "swapUnit");
   const cash = paymentValues(form, "cash");
 
   return {
@@ -85,8 +93,8 @@ function createPlaceholderValues(form: CaForm) {
     "{{MIDDLE_INITIAL}}": middleInitial(form.middleInitial),
     "{{ADDRESS}}": uppercase(form.completeAddress),
     "{{COMPLETE_ADDRESS}}": uppercase(form.completeAddress),
-    "{{AGREED_PRICE}}": money(form.agreedPrice),
-    "{{PURCHASE_PRICE}}": money(form.agreedPrice),
+    "{{AGREED_PRICE}}": money(form.agreedPrice, { allowZero: true, prefix: "P " }),
+    "{{PURCHASE_PRICE}}": money(form.agreedPrice, { allowZero: true, prefix: "P " }),
     "{{UNIT_DETAILS}}": uppercase(form.unitDetails),
     "{{UNIT_MODEL}}": uppercase(form.unitDetails),
     "{{UNIT_COLOR}}": uppercase(form.unitColor),
@@ -120,6 +128,12 @@ function createPlaceholderValues(form: CaForm) {
     "{{EWB_BANK_TRANSFER_YES}}": bankTransfer.yes,
     "{{EWB_BANK_TRANSFER_NO}}": bankTransfer.no,
     "{{EWB_BANK_TRANSFER_AMOUNT}}": bankTransfer.amount,
+    "{{SWAP_UNIT_YES}}": swapUnit.yes,
+    "{{SWAP_UNIT_NO}}": swapUnit.no,
+    "{{SWAP_UNIT_AMOUNT}}": swapUnit.amount,
+    "{{SWAP_YES}}": swapUnit.yes,
+    "{{SWAP_NO}}": swapUnit.no,
+    "{{SWAP_AMOUNT}}": swapUnit.amount,
     "{{CASH_YES}}": cash.yes,
     "{{CASH_NO}}": cash.no,
     "{{CASH_AMOUNT}}": cash.amount

@@ -21,14 +21,16 @@ const emptyForm: CaForm = {
     downpayment: { enabled: false, amount: "" },
     reservation: { enabled: false, amount: "" },
     bankTransfer: { enabled: false, amount: "" },
+    swapUnit: { enabled: false, amount: "" },
     cash: { enabled: false, amount: "" }
   }
 };
 
-const payments: Array<{ key: CaPaymentKey; label: string }> = [
+const payments: Array<{ key: CaPaymentKey; label: string; alphaNumeric?: boolean }> = [
   { key: "downpayment", label: "Downpayment" },
   { key: "reservation", label: "TOO / REG" },
   { key: "bankTransfer", label: "EWB / Bank Transfer" },
+  { key: "swapUnit", label: "SWAP UNIT", alphaNumeric: true },
   { key: "cash", label: "Cash" }
 ];
 
@@ -115,7 +117,7 @@ export function CreateCaPage() {
 
           <h3 className="mb-3 mt-5 font-semibold text-ink">Unit Details</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-sm font-medium text-slate-700">Agreed Price<input min="0" type="number" value={form.agreedPrice} onChange={(event) => setValue("agreedPrice", event.target.value)} /></label>
+            <label className="grid gap-1.5 text-sm font-medium text-slate-700">Agreed Price<input inputMode="decimal" placeholder="P 0.00" value={form.agreedPrice} onChange={(event) => setValue("agreedPrice", event.target.value)} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Unit Details<input value={form.unitDetails} onChange={(event) => setValue("unitDetails", event.target.value)} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Unit Color<input value={form.unitColor} onChange={(event) => setValue("unitColor", event.target.value)} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Engine Number<input value={form.engineNumber} onChange={(event) => setValue("engineNumber", event.target.value)} /></label>
@@ -133,7 +135,15 @@ export function CreateCaPage() {
                     <input checked={value.enabled} type="checkbox" onChange={(event) => setPayment(payment.key, { enabled: event.target.checked, amount: event.target.checked ? value.amount : "" })} />
                     Yes
                   </label>
-                  <input disabled={!value.enabled} min="0" placeholder="Amount" type="number" value={value.amount} onChange={(event) => setPayment(payment.key, { amount: event.target.value })} />
+                  <input
+                    disabled={!value.enabled}
+                    inputMode={payment.alphaNumeric ? "text" : "decimal"}
+                    min={payment.alphaNumeric ? undefined : "0"}
+                    placeholder={payment.alphaNumeric ? "Details / Value" : "Amount"}
+                    type="text"
+                    value={value.amount}
+                    onChange={(event) => setPayment(payment.key, { amount: event.target.value })}
+                  />
                 </div>
               );
             })}
