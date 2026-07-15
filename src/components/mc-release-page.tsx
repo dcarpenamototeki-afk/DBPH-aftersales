@@ -19,10 +19,11 @@ const initialForm: McReleaseForm = {
   cityTown: "",
   province: "",
   waiver: "",
+  warrantyBookletNumber: "",
   amount: ""
 };
 
-const fields: Array<{ key: keyof McReleaseForm; label: string; type?: string; required?: boolean }> = [
+const fields: Array<{ key: keyof McReleaseForm; label: string; type?: string; required?: boolean; important?: boolean }> = [
   { key: "releaseDate", label: "Release Date", type: "date", required: true },
   { key: "surname", label: "Surname", required: true },
   { key: "firstName", label: "First Name", required: true },
@@ -34,6 +35,7 @@ const fields: Array<{ key: keyof McReleaseForm; label: string; type?: string; re
   { key: "cityTown", label: "City/Town", required: true },
   { key: "province", label: "Province", required: true },
   { key: "waiver", label: "Waiver" },
+  { key: "warrantyBookletNumber", label: "Warranty Booklet Number", required: true, important: true },
   { key: "amount", label: "Amount", type: "number", required: true }
 ];
 
@@ -242,7 +244,10 @@ export function McReleasePage() {
           <div className="grid gap-3 md:grid-cols-2">
             {fields.map((field) => (
               <label key={field.key} className={field.key === "addressLine" ? "grid gap-1.5 text-sm font-medium text-slate-700 md:col-span-2" : "grid gap-1.5 text-sm font-medium text-slate-700"}>
-                {field.label}
+                <span>
+                  {field.label}
+                  {field.important ? <span className="ml-1 font-bold text-red-600">*</span> : null}
+                </span>
                 <input
                   required={field.required}
                   type={field.type ?? "text"}
@@ -254,7 +259,7 @@ export function McReleasePage() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={!motor || !form.amount.trim() || generating} onClick={generate} type="button">
+            <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={!motor || !form.amount.trim() || !form.warrantyBookletNumber.trim() || generating} onClick={generate} type="button">
               <FileCheck2 size={16} />
               {generating ? "Saving and generating..." : "Save and Generate PDF"}
             </button>
