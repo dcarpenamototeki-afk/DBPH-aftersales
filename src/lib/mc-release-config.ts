@@ -5,9 +5,9 @@ export const mcReleaseConfig = {
   stocksUnitModelColumn: "H",
   stocksPnpCsrStatusColumn: "M",
   journalSheet: "MC Journal",
-  firstJournalRow: 41,
+  firstJournalRow: 43,
   journalLookupColumn: "X",
-  journalScanColumns: ["X", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BK"],
+  journalScanColumns: ["X", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BE", "BK"],
   journalWrittenColumns: [
     "A", "U", "V", "X", "AD", "AE", "AF", "AL", "AP", "AQ", "AR", "AS",
     "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BD", "BE", "BF",
@@ -44,6 +44,7 @@ export type McReleaseForm = {
   cityTown: string;
   province: string;
   waiver: string;
+  warrantyBookletNumber: string;
   amount: string;
 };
 

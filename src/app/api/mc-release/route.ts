@@ -145,13 +145,14 @@ async function findAvailableJournalRow(startRow: number = mcReleaseConfig.firstJ
   });
   const columns = response.data.valueRanges ?? [];
   const longestColumn = Math.max(0, ...columns.map((range) => range.values?.length ?? 0));
+  let lastOccupiedOffset = -1;
 
-  for (let offset = 0; offset <= longestColumn; offset += 1) {
+  for (let offset = 0; offset < longestColumn; offset += 1) {
     const occupied = columns.some((range) => String(range.values?.[offset]?.[0] ?? "").trim());
-    if (!occupied) return startRow + offset;
+    if (occupied) lastOccupiedOffset = offset;
   }
 
-  return startRow + longestColumn + 1;
+  return startRow + lastOccupiedOffset + 1;
 }
 
 async function isJournalRowAvailable(row: number) {
@@ -210,7 +211,7 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
     [`${journal}!BB${journalRow}`, uppercase(form.cityTown)],
     [`${journal}!BC${journalRow}`, uppercase(form.province)],
     [`${journal}!BD${journalRow}`, uppercase(fixed.notApplicable)],
-    [`${journal}!BE${journalRow}`, uppercase(fixed.notApplicable)],
+    [`${journal}!BE${journalRow}`, uppercase(form.warrantyBookletNumber)],
     [`${journal}!BF${journalRow}`, uppercase(fixed.branch)],
     [`${journal}!BJ${journalRow}`, form.releaseDate],
     [`${journal}!BK${journalRow}`, form.amount],
@@ -420,7 +421,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const form = (await request.json()) as McReleaseForm;
-    const required = ["unitCode", "releaseDate", "surname", "firstName", "birthday", "cpNumber", "addressLine", "barangay", "cityTown", "province", "amount"] as const;
+    const required = ["unitCode", "releaseDate", "surname", "firstName", "birthday", "cpNumber", "addressLine", "barangay", "cityTown", "province", "warrantyBookletNumber", "amount"] as const;
     const missing = required.find((key) => !String(form[key] ?? "").trim());
     if (missing) return jsonError(`${missing} is required.`);
 
