@@ -55,6 +55,10 @@ function invalidDataIndex(error: unknown) {
   return match ? Number(match[1]) : -1;
 }
 
+function shouldSkipJournalWrite(column: string, row: number) {
+  return column === "V" && row === 43;
+}
+
 function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   const exact = findHeaderIndex(headers, aliases);
   if (exact >= 0) return exact;
@@ -187,40 +191,41 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
   const stocks = escapeSheetName(mcReleaseConfig.stocksSheet);
   const fixed = mcReleaseConfig.fixedValues;
   const uppercase = (value: string) => value.trim().toUpperCase();
-  const entries: Array<[string, string | boolean]> = [
-    [`${stocks}!${mcReleaseConfig.stockCheckboxColumn}${motor.sourceRow}`, true],
-    [`${journal}!A${journalRow}`, true],
-    [`${journal}!U${journalRow}`, form.releaseDate],
-    [`${journal}!V${journalRow}`, uppercase(fixed.releaseStatus)],
-    [`${journal}!X${journalRow}`, uppercase(form.unitCode)],
-    [`${journal}!AD${journalRow}`, uppercase(fixed.releasedBy)],
-    [`${journal}!AE${journalRow}`, form.amount],
-    [`${journal}!AF${journalRow}`, uppercase(fixed.paymentType)],
-    [`${journal}!AL${journalRow}`, uppercase(fixed.notApplicable)],
-    [`${journal}!AP${journalRow}`, true],
-    [`${journal}!AQ${journalRow}`, true],
-    [`${journal}!AR${journalRow}`, true],
-    [`${journal}!AS${journalRow}`, true],
-    [`${journal}!AU${journalRow}`, uppercase(form.surname)],
-    [`${journal}!AV${journalRow}`, uppercase(form.firstName)],
-    [`${journal}!AW${journalRow}`, uppercase(form.middleName)],
-    [`${journal}!AX${journalRow}`, form.birthday],
-    [`${journal}!AY${journalRow}`, uppercase(form.cpNumber)],
-    [`${journal}!AZ${journalRow}`, uppercase(form.addressLine)],
-    [`${journal}!BA${journalRow}`, uppercase(form.barangay)],
-    [`${journal}!BB${journalRow}`, uppercase(form.cityTown)],
-    [`${journal}!BC${journalRow}`, uppercase(form.province)],
-    [`${journal}!BD${journalRow}`, uppercase(fixed.notApplicable)],
-    [`${journal}!BE${journalRow}`, uppercase(form.warrantyBookletNumber)],
-    [`${journal}!BF${journalRow}`, uppercase(fixed.branch)],
-    [`${journal}!BJ${journalRow}`, form.releaseDate],
-    [`${journal}!BK${journalRow}`, form.amount],
-    [`${journal}!BL${journalRow}`, uppercase(fixed.notApplicable)],
-    [`${journal}!BM${journalRow}`, true],
-    [`${journal}!BV${journalRow}`, true],
-    [`${journal}!BX${journalRow}`, uppercase(form.waiver)],
-    [`${journal}!BZ${journalRow}`, true]
-  ];
+  type WriteEntry = [string, string | boolean, string?];
+  const entries: WriteEntry[] = ([
+    [`${stocks}!${mcReleaseConfig.stockCheckboxColumn}${motor.sourceRow}`, true, undefined],
+    [`${journal}!A${journalRow}`, true, "A"],
+    [`${journal}!U${journalRow}`, form.releaseDate, "U"],
+    [`${journal}!V${journalRow}`, uppercase(fixed.releaseStatus), "V"],
+    [`${journal}!X${journalRow}`, uppercase(form.unitCode), "X"],
+    [`${journal}!AD${journalRow}`, uppercase(fixed.releasedBy), "AD"],
+    [`${journal}!AE${journalRow}`, form.amount, "AE"],
+    [`${journal}!AF${journalRow}`, uppercase(fixed.paymentType), "AF"],
+    [`${journal}!AL${journalRow}`, uppercase(fixed.notApplicable), "AL"],
+    [`${journal}!AP${journalRow}`, true, "AP"],
+    [`${journal}!AQ${journalRow}`, true, "AQ"],
+    [`${journal}!AR${journalRow}`, true, "AR"],
+    [`${journal}!AS${journalRow}`, true, "AS"],
+    [`${journal}!AU${journalRow}`, uppercase(form.surname), "AU"],
+    [`${journal}!AV${journalRow}`, uppercase(form.firstName), "AV"],
+    [`${journal}!AW${journalRow}`, uppercase(form.middleName), "AW"],
+    [`${journal}!AX${journalRow}`, form.birthday, "AX"],
+    [`${journal}!AY${journalRow}`, uppercase(form.cpNumber), "AY"],
+    [`${journal}!AZ${journalRow}`, uppercase(form.addressLine), "AZ"],
+    [`${journal}!BA${journalRow}`, uppercase(form.barangay), "BA"],
+    [`${journal}!BB${journalRow}`, uppercase(form.cityTown), "BB"],
+    [`${journal}!BC${journalRow}`, uppercase(form.province), "BC"],
+    [`${journal}!BD${journalRow}`, uppercase(fixed.notApplicable), "BD"],
+    [`${journal}!BE${journalRow}`, uppercase(form.warrantyBookletNumber), "BE"],
+    [`${journal}!BF${journalRow}`, uppercase(fixed.branch), "BF"],
+    [`${journal}!BJ${journalRow}`, form.releaseDate, "BJ"],
+    [`${journal}!BK${journalRow}`, form.amount, "BK"],
+    [`${journal}!BL${journalRow}`, uppercase(fixed.notApplicable), "BL"],
+    [`${journal}!BM${journalRow}`, true, "BM"],
+    [`${journal}!BV${journalRow}`, true, "BV"],
+    [`${journal}!BX${journalRow}`, uppercase(form.waiver), "BX"],
+    [`${journal}!BZ${journalRow}`, true, "BZ"]
+  ] as WriteEntry[]).filter(([, , column]) => !column || !shouldSkipJournalWrite(column, journalRow));
   const pending = [...entries];
   const skipped: string[] = [];
 
