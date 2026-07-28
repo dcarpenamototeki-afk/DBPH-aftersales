@@ -95,10 +95,7 @@ export function SalesInvoiceTrackerPage() {
 
   function updateEditing(key: keyof SalesInvoiceTrackerRecord, value: string) {
     setEditing((current) => {
-      const next = { ...(current ?? {}), [key]: value };
-      if (key === "status" && value === "CLAIMED" && !next.date_released) next.date_released = today;
-      if (key === "status" && value === "PENDING") next.date_released = null;
-      return next;
+      return { ...(current ?? {}), [key]: value };
     });
   }
 
@@ -106,7 +103,8 @@ export function SalesInvoiceTrackerPage() {
     if (!editing) return;
     const payload = {
       ...editing,
-      date_released: editing.status === "CLAIMED" ? editing.date_released || today : null
+      status: editing.status ?? "PENDING",
+      date_released: editing.status === "CLAIMED" ? editing.date_released ?? null : null
     };
     const response = await fetch(editing.id ? `/api/sales-invoice-tracker/${editing.id}` : "/api/sales-invoice-tracker", {
       method: editing.id ? "PATCH" : "POST",
@@ -246,14 +244,6 @@ export function SalesInvoiceTrackerPage() {
               <Field label="Engine #" value={editing.engine_number ?? ""} onChange={(value) => updateEditing("engine_number", value)} required />
               <Field label="Chassis #" value={editing.chassis_number ?? ""} onChange={(value) => updateEditing("chassis_number", value)} required />
               <Field label="Date of Submission to Bristol" type="date" value={editing.date_submitted_to_bristol ?? ""} onChange={(value) => updateEditing("date_submitted_to_bristol", value)} required />
-              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                Status
-                <select value={editing.status ?? "PENDING"} onChange={(event) => updateEditing("status", event.target.value)}>
-                  <option value="PENDING">Pending</option>
-                  <option value="CLAIMED">Claimed</option>
-                </select>
-              </label>
-              <Field label="Date Released" type="date" value={editing.date_released ?? ""} onChange={(value) => updateEditing("date_released", value)} />
               <label className="grid gap-1.5 text-sm font-medium text-slate-700 md:col-span-2">
                 Note
                 <textarea className="min-h-28 rounded-md border border-line px-3 py-2" value={editing.note ?? ""} onChange={(event) => updateEditing("note", event.target.value)} placeholder="Follow-up notes, contact person, or reminders" />
