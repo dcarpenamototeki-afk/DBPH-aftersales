@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 const backupTables = [
   "orcr_plate_records",
   "sales_invoice_records",
+  "sales_invoice_tracker_records",
   "sb_finance_inventory",
   "unidentified_plate_records",
   "too_status_records",

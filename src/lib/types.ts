@@ -100,6 +100,20 @@ export type TooStatusRecord = {
   updated_at: string;
 };
 
+export type SalesInvoiceTrackerRecord = {
+  id: string;
+  model: string;
+  engine_number: string;
+  chassis_number: string;
+  color: string;
+  date_submitted_to_bristol: string | null;
+  status: "PENDING" | "CLAIMED";
+  note: string;
+  date_released: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type WarehouseInventoryRecord = {
   id: string;
   warehouse: "DB1 WAREHOUSE" | "DB2 WAREHOUSE";
