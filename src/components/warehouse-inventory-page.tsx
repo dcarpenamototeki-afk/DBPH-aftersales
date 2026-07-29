@@ -271,6 +271,7 @@ export function WarehouseInventoryPage() {
     const needle = warehouseSearches[warehouse].trim().toLowerCase();
     return rows
       .filter((row) => row.warehouse === warehouse)
+      .filter((row) => warehouse !== "DB2 WAREHOUSE" || rowStatus(row) !== "SOLD")
       .filter((row) => !needle || [
         row.model,
         row.color,
