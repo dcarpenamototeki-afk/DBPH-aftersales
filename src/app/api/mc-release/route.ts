@@ -37,10 +37,6 @@ function parseA1Range(range: string) {
   };
 }
 
-function isChecked(value: unknown) {
-  return ["TRUE", "YES", "1"].includes(normalizeSheetValue(value));
-}
-
 function sheetErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error ?? "");
 }
@@ -56,7 +52,7 @@ function invalidDataIndex(error: unknown) {
 }
 
 function shouldSkipJournalWrite(column: string, row: number) {
-  return column === "V" && row >= 44;
+  return column === "V" && row === 43;
 }
 
 function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
@@ -102,14 +98,14 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
     chassisNumber: flexibleHeaderIndex(headers, headerAliases.chassisNumber),
     color: flexibleHeaderIndex(headers, headerAliases.color),
     pnpCsrStatus: columnIndex(mcReleaseConfig.stocksPnpCsrStatusColumn),
-    released: columnIndex(mcReleaseConfig.stockCheckboxColumn)
+    availabilityStatus: columnIndex(mcReleaseConfig.stocksAvailabilityStatusColumn)
   };
   const motorcycles: MotorcycleMatch[] = [];
   const seenUnitCodes = new Set<string>();
 
   for (let index = mcReleaseConfig.stocksFirstDataRow - 1; index < rows.length; index += 1) {
     const row = rows[index];
-    if (isChecked(row[indexes.released])) continue;
+    if (normalizeSheetValue(row[indexes.availabilityStatus]) !== "AVAILABLE") continue;
     const unitCode = String(row[indexes.unitCode] ?? "").trim();
     const normalizedUnitCode = normalizeSheetValue(unitCode);
     if (!normalizedUnitCode || seenUnitCodes.has(normalizedUnitCode)) continue;
@@ -188,12 +184,10 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
   const journal = escapeSheetName(mcReleaseConfig.journalSheet);
-  const stocks = escapeSheetName(mcReleaseConfig.stocksSheet);
   const fixed = mcReleaseConfig.fixedValues;
   const uppercase = (value: string) => value.trim().toUpperCase();
   type WriteEntry = [string, string | boolean, string?];
-  const entries: WriteEntry[] = [
-    [`${stocks}!${mcReleaseConfig.stockCheckboxColumn}${motor.sourceRow}`, true, undefined],
+  const entries: WriteEntry[] = ([
     [`${journal}!A${journalRow}`, true, "A"],
     [`${journal}!U${journalRow}`, form.releaseDate, "U"],
     [`${journal}!V${journalRow}`, uppercase(fixed.releaseStatus), "V"],
@@ -225,11 +219,9 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
     [`${journal}!BV${journalRow}`, true, "BV"],
     [`${journal}!BX${journalRow}`, uppercase(form.waiver), "BX"],
     [`${journal}!BZ${journalRow}`, true, "BZ"]
-  ];
-  const skipped = entries
-    .filter(([, , column]) => column && shouldSkipJournalWrite(column, journalRow))
-    .map(([range]) => range);
-  const pending = entries.filter(([, , column]) => !column || !shouldSkipJournalWrite(column, journalRow));
+  ] as WriteEntry[]).filter(([, , column]) => !column || !shouldSkipJournalWrite(column, journalRow));
+  const pending = [...entries];
+  const skipped: string[] = [];
 
   while (pending.length) {
     try {
@@ -252,12 +244,11 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
   return skipped;
 }
 
-async function rollbackRelease(journalRow: number, stockRow: number, unitCode: string) {
+async function rollbackRelease(journalRow: number, unitCode: string) {
   const auth = getGoogleAuth();
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
   const journal = escapeSheetName(mcReleaseConfig.journalSheet);
-  const stocks = escapeSheetName(mcReleaseConfig.stocksSheet);
   const unitCell = `${journal}!${mcReleaseConfig.journalLookupColumn}${journalRow}`;
   const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: unitCell });
   const savedUnitCode = String(response.data.values?.[0]?.[0] ?? "");
@@ -266,10 +257,11 @@ async function rollbackRelease(journalRow: number, stockRow: number, unitCode: s
     throw new Error("Rollback stopped because the journal row no longer belongs to this Unit Code.");
   }
 
+  const checkboxColumns: readonly string[] = mcReleaseConfig.journalCheckboxColumns;
   const clearColumns = [
     mcReleaseConfig.journalLookupColumn,
     ...mcReleaseConfig.journalWrittenColumns.filter(
-      (column) => column !== mcReleaseConfig.journalLookupColumn
+      (column) => column !== mcReleaseConfig.journalLookupColumn && !checkboxColumns.includes(column)
     )
   ];
   for (const column of clearColumns) {
@@ -281,12 +273,20 @@ async function rollbackRelease(journalRow: number, stockRow: number, unitCode: s
       throw error;
     }
   }
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `${stocks}!${mcReleaseConfig.stockCheckboxColumn}${stockRow}`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values: [[false]] }
-  });
+  for (const column of checkboxColumns) {
+    const range = `${journal}!${column}${journalRow}`;
+    try {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [[false]] }
+      });
+    } catch (error) {
+      if (isProtectedCellError(error)) continue;
+      throw error;
+    }
+  }
 }
 
 async function exportCombinedPdf() {
@@ -485,7 +485,7 @@ export async function DELETE(request: NextRequest) {
       return jsonError("Invalid revert request.");
     }
 
-    await rollbackRelease(journalRow, stockRow, unitCode);
+    await rollbackRelease(journalRow, unitCode);
 
     return NextResponse.json({ ok: true, journalRow });
   } catch (error) {
