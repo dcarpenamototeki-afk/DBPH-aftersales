@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PDFDocument, rgb } from "pdf-lib";
-import { Download, FileImage, FileText, RotateCcw, Upload, Wand2, X } from "lucide-react";
+import { Camera, Download, FileImage, FileText, RotateCcw, Upload, Wand2, X } from "lucide-react";
 import { emptyLtmsForm, ltmsFields, ltmsTemplates } from "@/lib/ltms-filler-config";
 import type { LtmsFieldKey, LtmsTemplateConfig } from "@/lib/ltms-filler-config";
 import { PageHeader } from "./page-header";
@@ -119,8 +119,12 @@ export function LtmsFillerPage() {
   const [pdfMessage, setPdfMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [activeCamera, setActiveCamera] = useState<PdfImageKey | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraMessage, setCameraMessage] = useState("");
   const generatedRef = useRef<GeneratedImage[]>([]);
   const pdfUrlRef = useRef<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const canGenerate = useMemo(() => Object.values(values).some((value) => value.trim()), [values]);
   const canGeneratePdf = useMemo(
@@ -137,11 +141,18 @@ export function LtmsFillerPage() {
   }, [pdfUrl]);
 
   useEffect(() => {
+    if (videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream]);
+
+  useEffect(() => {
     return () => {
       revokeGenerated(generatedRef.current);
       revokeUrl(pdfUrlRef.current);
+      cameraStream?.getTracks().forEach((track) => track.stop());
     };
-  }, []);
+  }, [cameraStream]);
 
   function updateValue(key: LtmsFieldKey, value: string) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -162,12 +173,20 @@ export function LtmsFillerPage() {
   function exitGenerated() {
     revokeGenerated(generated);
     revokeUrl(pdfUrl);
+    stopCamera();
     setGenerated([]);
     setPdfImages(emptyPdfImages);
     setPdfUrl(null);
     setPdfInputKey((current) => current + 1);
     setMessage("Generated LTMS images were cleared.");
     setPdfMessage("PDF maker files were cleared.");
+  }
+
+  function stopCamera() {
+    cameraStream?.getTracks().forEach((track) => track.stop());
+    setCameraStream(null);
+    setActiveCamera(null);
+    setCameraMessage("");
   }
 
   async function generateImages() {
@@ -216,6 +235,54 @@ export function LtmsFillerPage() {
 
     const blob = await blobFromUrl(image.url);
     updatePdfImage(key, new File([blob], image.outputName, { type: blob.type || "image/png" }));
+  }
+
+  async function openCamera(key: PdfImageKey) {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setPdfMessage("Camera is not available in this browser. Use Upload instead.");
+      return;
+    }
+
+    stopCamera();
+    setActiveCamera(key);
+    setCameraMessage("Opening camera...");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+      setCameraStream(stream);
+      setCameraMessage("");
+    } catch (error) {
+      setActiveCamera(null);
+      setCameraMessage("");
+      setPdfMessage(error instanceof Error ? error.message : "Unable to open camera. Please allow camera permission or use Upload.");
+    }
+  }
+
+  async function captureCameraImage() {
+    if (!activeCamera || !videoRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setCameraMessage("Unable to capture image from camera.");
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!blob) {
+      setCameraMessage("Unable to save camera image.");
+      return;
+    }
+
+    updatePdfImage(activeCamera, new File([blob], `${activeCamera}_camera.jpg`, { type: "image/jpeg" }));
+    stopCamera();
   }
 
   async function generatePdf() {
@@ -377,27 +444,32 @@ export function LtmsFillerPage() {
             <div className="grid gap-3 md:grid-cols-2">
               {pdfImageFields.map((field) => (
                 <div key={field.key} className="rounded-md border border-line p-3">
-                  <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                    {field.label}
-                    <input
-                      key={`${field.key}-file-${pdfInputKey}`}
-                      accept="image/png,image/jpeg,image/*"
-                      type="file"
-                      onChange={(event) => updatePdfImage(field.key, event.target.files?.[0] ?? null)}
-                    />
-                  </label>
-                  {field.camera ? (
-                    <label className="mt-2 grid gap-1.5 text-sm font-medium text-slate-700">
-                      Use Camera
-                      <input
-                        key={`${field.key}-camera-${pdfInputKey}`}
-                        accept="image/*"
-                        capture="environment"
-                        type="file"
-                        onChange={(event) => updatePdfImage(field.key, event.target.files?.[0] ?? null)}
-                      />
-                    </label>
-                  ) : null}
+                  <div className="grid gap-2">
+                    <p className="text-sm font-medium text-slate-700">{field.label}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink">
+                        <Upload size={15} />
+                        Upload
+                        <input
+                          key={`${field.key}-file-${pdfInputKey}`}
+                          accept="image/png,image/jpeg,image/*"
+                          className="sr-only"
+                          type="file"
+                          onChange={(event) => updatePdfImage(field.key, event.target.files?.[0] ?? null)}
+                        />
+                      </label>
+                      {field.camera ? (
+                        <button
+                          className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink"
+                          onClick={() => openCamera(field.key)}
+                          type="button"
+                        >
+                          <Camera size={15} />
+                          Use Camera
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     {pdfImages[field.key] ? <span className="font-medium text-emerald-700">{pdfImages[field.key]?.name}</span> : <span>No image selected</span>}
                     {field.generatedTitle ? (
@@ -444,6 +516,38 @@ export function LtmsFillerPage() {
           </div>
         </section>
       </div>
+      {activeCamera ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+          <div className="w-full max-w-3xl rounded-lg bg-white p-4 shadow-soft">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="font-semibold text-ink">Use Camera</h3>
+              <button
+                className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink"
+                onClick={stopCamera}
+                type="button"
+              >
+                <X size={16} />
+                Close
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-md bg-black">
+              <video ref={videoRef} autoPlay muted playsInline className="max-h-[70vh] w-full object-contain" />
+            </div>
+            {cameraMessage ? <p className="mt-3 text-sm text-slate-600">{cameraMessage}</p> : null}
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                disabled={!cameraStream}
+                onClick={captureCameraImage}
+                type="button"
+              >
+                <Camera size={16} />
+                Capture
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
