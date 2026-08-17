@@ -20,9 +20,9 @@ type PdfImageInput = {
   blob: Blob;
 };
 
-const pdfImageFields: Array<{ key: PdfImageKey; label: string; generatedTitle?: string }> = [
-  { key: "licenseFront", label: "License Front" },
-  { key: "licenseBack", label: "License Back" },
+const pdfImageFields: Array<{ key: PdfImageKey; label: string; generatedTitle?: string; camera?: boolean }> = [
+  { key: "licenseFront", label: "License Front", camera: true },
+  { key: "licenseBack", label: "License Back", camera: true },
   { key: "ltmsPage1", label: "LTMS Page 1", generatedTitle: "LTMS Page 1" },
   { key: "ltmsPage2", label: "LTMS Page 2", generatedTitle: "LTMS Page 2" }
 ];
@@ -247,8 +247,18 @@ export function LtmsFillerPage() {
       page.drawRectangle({ x: 0, y: 0, width: page.getWidth(), height: page.getHeight(), color: rgb(1, 1, 1) });
       await drawImage(pdfImages.licenseFront!, { x: 45, top: 105, width: 245, height: 150 });
       await drawImage(pdfImages.licenseBack!, { x: 305, top: 105, width: 245, height: 150 });
-      await drawImage(pdfImages.ltmsPage1!, { x: 98, top: 310, width: 190, height: 410 });
-      await drawImage(pdfImages.ltmsPage2!, { x: 325, top: 310, width: 190, height: 410 });
+      await drawImage(pdfImages.ltmsPage1!, { x: 98, top: 285, width: 190, height: 370 });
+      await drawImage(pdfImages.ltmsPage2!, { x: 325, top: 285, width: 190, height: 370 });
+
+      const signatureTop = pageHeight - 735;
+      [82, 232, 382].forEach((x) => {
+        page.drawLine({
+          start: { x, y: signatureTop },
+          end: { x: x + 130, y: signatureTop },
+          thickness: 0.8,
+          color: rgb(0, 0, 0)
+        });
+      });
 
       const bytes = await pdf.save();
       const pdfBytes = bytes.slice().buffer;
@@ -370,12 +380,24 @@ export function LtmsFillerPage() {
                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                     {field.label}
                     <input
-                      key={`${field.key}-${pdfInputKey}`}
-                      accept="image/png,image/jpeg"
+                      key={`${field.key}-file-${pdfInputKey}`}
+                      accept="image/png,image/jpeg,image/*"
                       type="file"
                       onChange={(event) => updatePdfImage(field.key, event.target.files?.[0] ?? null)}
                     />
                   </label>
+                  {field.camera ? (
+                    <label className="mt-2 grid gap-1.5 text-sm font-medium text-slate-700">
+                      Use Camera
+                      <input
+                        key={`${field.key}-camera-${pdfInputKey}`}
+                        accept="image/*"
+                        capture="environment"
+                        type="file"
+                        onChange={(event) => updatePdfImage(field.key, event.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     {pdfImages[field.key] ? <span className="font-medium text-emerald-700">{pdfImages[field.key]?.name}</span> : <span>No image selected</span>}
                     {field.generatedTitle ? (
