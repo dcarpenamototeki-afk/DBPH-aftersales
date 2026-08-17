@@ -207,7 +207,7 @@ export function LtmsFillerPage() {
     }));
   }
 
-  async function useGeneratedImage(key: PdfImageKey, title: string) {
+  async function insertGeneratedImage(key: PdfImageKey, title: string) {
     const image = generated.find((item) => item.title === title);
     if (!image) {
       setPdfMessage(`${title} has not been generated yet.`);
@@ -382,7 +382,7 @@ export function LtmsFillerPage() {
                       <button
                         className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2 py-1 font-semibold text-ink disabled:opacity-50"
                         disabled={!generated.some((image) => image.title === field.generatedTitle)}
-                        onClick={() => useGeneratedImage(field.key, field.generatedTitle!)}
+                        onClick={() => insertGeneratedImage(field.key, field.generatedTitle!)}
                         type="button"
                       >
                         <Upload size={13} />
