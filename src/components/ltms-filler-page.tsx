@@ -30,7 +30,9 @@ type CropRect = {
 
 type CapturedImage = {
   key: PdfImageKey;
-  name: string;
+  source: "camera" | "upload";
+  originalName: string;
+  croppedName: string;
   blob: Blob;
   url: string;
   width: number;
@@ -296,13 +298,21 @@ export function LtmsFillerPage() {
     }));
   }
 
-  function openImageCropper(key: PdfImageKey, blob: Blob, name: string) {
+  function openImageCropper(
+    key: PdfImageKey,
+    blob: Blob,
+    originalName: string,
+    source: CapturedImage["source"]
+  ) {
     if (capturedImage) URL.revokeObjectURL(capturedImage.url);
+    const baseName = originalName.replace(/\.[^.]+$/, "") || key;
     setCropRect(null);
     setCropMessage("");
     setCapturedImage({
       key,
-      name,
+      source,
+      originalName,
+      croppedName: `${baseName}_cropped.jpg`,
       blob,
       url: URL.createObjectURL(blob),
       width: 1,
@@ -317,8 +327,7 @@ export function LtmsFillerPage() {
     }
 
     if (key === "licenseFront" || key === "licenseBack") {
-      const baseName = file.name.replace(/\.[^.]+$/, "") || key;
-      openImageCropper(key, file, `${baseName}_cropped.jpg`);
+      openImageCropper(key, file, file.name, "upload");
       return;
     }
 
@@ -382,7 +391,7 @@ export function LtmsFillerPage() {
 
     const key = activeCamera;
     stopCamera();
-    openImageCropper(key, blob, `${key}_cropped.jpg`);
+    openImageCropper(key, blob, `${key}_camera.jpg`, "camera");
   }
 
   function initializeCrop(event: React.SyntheticEvent<HTMLImageElement>) {
@@ -508,7 +517,31 @@ export function LtmsFillerPage() {
 
     updatePdfImage(
       capturedImage.key,
-      new File([blob], capturedImage.name, { type: "image/jpeg" })
+      new File([blob], capturedImage.croppedName, { type: "image/jpeg" })
+    );
+    closeCropper();
+  }
+
+  async function acceptOriginalId() {
+    if (!capturedImage || !cropImageRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = capturedImage.width;
+    canvas.height = capturedImage.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setCropMessage("Unable to accept the image.");
+      return;
+    }
+    ctx.drawImage(cropImageRef.current, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!blob) {
+      setCropMessage("Unable to save the accepted image.");
+      return;
+    }
+    const baseName = capturedImage.originalName.replace(/\.[^.]+$/, "") || capturedImage.key;
+    updatePdfImage(
+      capturedImage.key,
+      new File([blob], `${baseName}_accepted.jpg`, { type: "image/jpeg" })
     );
     closeCropper();
   }
@@ -541,10 +574,10 @@ export function LtmsFillerPage() {
 
       page.drawRectangle({ x: 0, y: 0, width: page.getWidth(), height: page.getHeight(), color: rgb(1, 1, 1) });
       if (pdfImages.licenseFront) {
-        await drawImage(pdfImages.licenseFront, { x: 45, top: 105, width: 245, height: 150 });
+        await drawImage(pdfImages.licenseFront, { x: 40, top: 105, width: 252, height: 144 });
       }
       if (pdfImages.licenseBack) {
-        await drawImage(pdfImages.licenseBack, { x: 305, top: 105, width: 245, height: 150 });
+        await drawImage(pdfImages.licenseBack, { x: 303, top: 105, width: 252, height: 144 });
       }
       if (pdfImages.ltmsPage1) {
         await drawImage(pdfImages.ltmsPage1, { x: 98, top: 285, width: 190, height: 370 });
@@ -859,6 +892,14 @@ export function LtmsFillerPage() {
 
             {cropMessage ? <p className="mt-3 text-sm text-red-600">{cropMessage}</p> : null}
             <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink"
+                onClick={acceptOriginalId}
+                type="button"
+              >
+                <FileImage size={16} />
+                {capturedImage.source === "upload" ? "Accept Uploaded Image" : "Accept Captured Image"}
+              </button>
               <button
                 className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 disabled={!cropRect}
