@@ -44,7 +44,8 @@ type CropInteraction = {
   crop: CropRect;
 };
 
-const licenseCropRatio = 2.5 / 3;
+// A 2 x 3.5-inch ID is displayed in its usual landscape orientation.
+const licenseCropRatio = 3.5 / 2;
 const minimumCropSize = 80;
 
 const pdfImageFields: Array<{ key: PdfImageKey; label: string; generatedTitle?: string; camera?: boolean }> = [
@@ -182,7 +183,7 @@ export function LtmsFillerPage() {
 
   const canGenerate = useMemo(() => Object.values(values).some((value) => value.trim()), [values]);
   const canGeneratePdf = useMemo(
-    () => pdfImageFields.every((field) => pdfImages[field.key]),
+    () => Object.values(pdfImages).some(Boolean),
     [pdfImages]
   );
 
@@ -295,6 +296,35 @@ export function LtmsFillerPage() {
     }));
   }
 
+  function openImageCropper(key: PdfImageKey, blob: Blob, name: string) {
+    if (capturedImage) URL.revokeObjectURL(capturedImage.url);
+    setCropRect(null);
+    setCropMessage("");
+    setCapturedImage({
+      key,
+      name,
+      blob,
+      url: URL.createObjectURL(blob),
+      width: 1,
+      height: 1
+    });
+  }
+
+  function handlePdfImageUpload(key: PdfImageKey, file: File | null) {
+    if (!file) {
+      updatePdfImage(key, null);
+      return;
+    }
+
+    if (key === "licenseFront" || key === "licenseBack") {
+      const baseName = file.name.replace(/\.[^.]+$/, "") || key;
+      openImageCropper(key, file, `${baseName}_cropped.jpg`);
+      return;
+    }
+
+    updatePdfImage(key, file);
+  }
+
   async function insertGeneratedImage(key: PdfImageKey, title: string) {
     const image = generated.find((item) => item.title === title);
     if (!image) {
@@ -351,18 +381,8 @@ export function LtmsFillerPage() {
     }
 
     const key = activeCamera;
-    const url = URL.createObjectURL(blob);
     stopCamera();
-    setCropRect(null);
-    setCropMessage("");
-    setCapturedImage({
-      key,
-      name: `${key}_cropped.jpg`,
-      blob,
-      url,
-      width: canvas.width,
-      height: canvas.height
-    });
+    openImageCropper(key, blob, `${key}_cropped.jpg`);
   }
 
   function initializeCrop(event: React.SyntheticEvent<HTMLImageElement>) {
@@ -495,7 +515,7 @@ export function LtmsFillerPage() {
 
   async function generatePdf() {
     if (!canGeneratePdf) {
-      setPdfMessage("Upload all 4 images first: license front, license back, LTMS page 1, and LTMS page 2.");
+      setPdfMessage("Add at least one ID or LTMS image before generating the PDF.");
       return;
     }
 
@@ -520,10 +540,18 @@ export function LtmsFillerPage() {
       };
 
       page.drawRectangle({ x: 0, y: 0, width: page.getWidth(), height: page.getHeight(), color: rgb(1, 1, 1) });
-      await drawImage(pdfImages.licenseFront!, { x: 45, top: 105, width: 245, height: 150 });
-      await drawImage(pdfImages.licenseBack!, { x: 305, top: 105, width: 245, height: 150 });
-      await drawImage(pdfImages.ltmsPage1!, { x: 98, top: 285, width: 190, height: 370 });
-      await drawImage(pdfImages.ltmsPage2!, { x: 325, top: 285, width: 190, height: 370 });
+      if (pdfImages.licenseFront) {
+        await drawImage(pdfImages.licenseFront, { x: 45, top: 105, width: 245, height: 150 });
+      }
+      if (pdfImages.licenseBack) {
+        await drawImage(pdfImages.licenseBack, { x: 305, top: 105, width: 245, height: 150 });
+      }
+      if (pdfImages.ltmsPage1) {
+        await drawImage(pdfImages.ltmsPage1, { x: 98, top: 285, width: 190, height: 370 });
+      }
+      if (pdfImages.ltmsPage2) {
+        await drawImage(pdfImages.ltmsPage2, { x: 325, top: 285, width: 190, height: 370 });
+      }
 
       const signatureTop = pageHeight - 735;
       [82, 232, 382].forEach((x) => {
@@ -663,7 +691,10 @@ export function LtmsFillerPage() {
                           accept="image/png,image/jpeg,image/*"
                           className="sr-only"
                           type="file"
-                          onChange={(event) => updatePdfImage(field.key, event.target.files?.[0] ?? null)}
+                          onChange={(event) => {
+                            handlePdfImageUpload(field.key, event.target.files?.[0] ?? null);
+                            event.target.value = "";
+                          }}
                         />
                       </label>
                       {field.camera ? (
@@ -761,9 +792,9 @@ export function LtmsFillerPage() {
           <div className="w-full max-w-4xl rounded-lg bg-white p-4 shadow-soft">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-semibold text-ink">Crop Driver&apos;s License ID</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Drag the crop area or resize it from a corner. The ratio is fixed at 2.5 × 3.
+                  <h3 className="font-semibold text-ink">Crop Driver&apos;s License ID</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                  Drag the crop area or resize it from a corner. The ratio is fixed at the landscape 2 × 3.5 ID size.
                 </p>
               </div>
               <button
