@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { PDFDocument, rgb } from "pdf-lib";
-import { Camera, Download, FileImage, FileText, RotateCcw, Upload, Wand2, X } from "lucide-react";
+import { Camera, Crop, Download, FileImage, FileText, RotateCcw, Upload, Wand2, X } from "lucide-react";
 import { emptyLtmsForm, ltmsFields, ltmsTemplates } from "@/lib/ltms-filler-config";
 import type { LtmsFieldKey, LtmsTemplateConfig } from "@/lib/ltms-filler-config";
 import { PageHeader } from "./page-header";
@@ -19,6 +20,32 @@ type PdfImageInput = {
   name: string;
   blob: Blob;
 };
+
+type CropRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type CapturedImage = {
+  key: PdfImageKey;
+  name: string;
+  blob: Blob;
+  url: string;
+  width: number;
+  height: number;
+};
+
+type CropInteraction = {
+  mode: "move" | "nw" | "ne" | "sw" | "se";
+  pointerX: number;
+  pointerY: number;
+  crop: CropRect;
+};
+
+const licenseCropRatio = 2.5 / 3;
+const minimumCropSize = 80;
 
 const pdfImageFields: Array<{ key: PdfImageKey; label: string; generatedTitle?: string; camera?: boolean }> = [
   { key: "licenseFront", label: "License Front", camera: true },
@@ -109,6 +136,27 @@ function fitWithin(width: number, height: number, maxWidth: number, maxHeight: n
   return { width: width * scale, height: height * scale };
 }
 
+function initialLicenseCrop(width: number, height: number): CropRect {
+  let cropWidth = width * 0.82;
+  let cropHeight = cropWidth / licenseCropRatio;
+
+  if (cropHeight > height * 0.82) {
+    cropHeight = height * 0.82;
+    cropWidth = cropHeight * licenseCropRatio;
+  }
+
+  return {
+    x: (width - cropWidth) / 2,
+    y: (height - cropHeight) / 2,
+    width: cropWidth,
+    height: cropHeight
+  };
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(value, minimum), maximum);
+}
+
 export function LtmsFillerPage() {
   const [values, setValues] = useState<Record<LtmsFieldKey, string>>(emptyLtmsForm);
   const [generated, setGenerated] = useState<GeneratedImage[]>([]);
@@ -122,9 +170,15 @@ export function LtmsFillerPage() {
   const [activeCamera, setActiveCamera] = useState<PdfImageKey | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraMessage, setCameraMessage] = useState("");
+  const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
+  const [cropRect, setCropRect] = useState<CropRect | null>(null);
+  const [cropMessage, setCropMessage] = useState("");
   const generatedRef = useRef<GeneratedImage[]>([]);
   const pdfUrlRef = useRef<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cropImageRef = useRef<HTMLImageElement | null>(null);
+  const cropInteractionRef = useRef<CropInteraction | null>(null);
+  const capturedImageRef = useRef<CapturedImage | null>(null);
 
   const canGenerate = useMemo(() => Object.values(values).some((value) => value.trim()), [values]);
   const canGeneratePdf = useMemo(
@@ -141,6 +195,10 @@ export function LtmsFillerPage() {
   }, [pdfUrl]);
 
   useEffect(() => {
+    capturedImageRef.current = capturedImage;
+  }, [capturedImage]);
+
+  useEffect(() => {
     if (videoRef.current && cameraStream) {
       videoRef.current.srcObject = cameraStream;
     }
@@ -150,6 +208,7 @@ export function LtmsFillerPage() {
     return () => {
       revokeGenerated(generatedRef.current);
       revokeUrl(pdfUrlRef.current);
+      revokeUrl(capturedImageRef.current?.url ?? null);
       cameraStream?.getTracks().forEach((track) => track.stop());
     };
   }, [cameraStream]);
@@ -168,6 +227,7 @@ export function LtmsFillerPage() {
     setPdfInputKey((current) => current + 1);
     setMessage("");
     setPdfMessage("");
+    closeCropper();
   }
 
   function exitGenerated() {
@@ -180,6 +240,7 @@ export function LtmsFillerPage() {
     setPdfInputKey((current) => current + 1);
     setMessage("Generated LTMS images were cleared.");
     setPdfMessage("PDF maker files were cleared.");
+    closeCropper();
   }
 
   function stopCamera() {
@@ -187,6 +248,14 @@ export function LtmsFillerPage() {
     setCameraStream(null);
     setActiveCamera(null);
     setCameraMessage("");
+  }
+
+  function closeCropper() {
+    if (capturedImage) URL.revokeObjectURL(capturedImage.url);
+    setCapturedImage(null);
+    setCropRect(null);
+    setCropMessage("");
+    cropInteractionRef.current = null;
   }
 
   async function generateImages() {
@@ -281,8 +350,147 @@ export function LtmsFillerPage() {
       return;
     }
 
-    updatePdfImage(activeCamera, new File([blob], `${activeCamera}_camera.jpg`, { type: "image/jpeg" }));
+    const key = activeCamera;
+    const url = URL.createObjectURL(blob);
     stopCamera();
+    setCropRect(null);
+    setCropMessage("");
+    setCapturedImage({
+      key,
+      name: `${key}_cropped.jpg`,
+      blob,
+      url,
+      width: canvas.width,
+      height: canvas.height
+    });
+  }
+
+  function initializeCrop(event: React.SyntheticEvent<HTMLImageElement>) {
+    const image = event.currentTarget;
+    const width = image.naturalWidth || capturedImage?.width || 1;
+    const height = image.naturalHeight || capturedImage?.height || 1;
+    setCapturedImage((current) => (current ? { ...current, width, height } : current));
+    setCropRect(initialLicenseCrop(width, height));
+  }
+
+  function imagePointerPosition(event: ReactPointerEvent<HTMLElement>) {
+    const image = cropImageRef.current;
+    if (!image || !capturedImage) return null;
+    const bounds = image.getBoundingClientRect();
+    return {
+      x: (event.clientX - bounds.left) * (capturedImage.width / bounds.width),
+      y: (event.clientY - bounds.top) * (capturedImage.height / bounds.height)
+    };
+  }
+
+  function startCropInteraction(
+    event: ReactPointerEvent<HTMLElement>,
+    mode: CropInteraction["mode"]
+  ) {
+    if (!cropRect) return;
+    const point = imagePointerPosition(event);
+    if (!point) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    cropInteractionRef.current = {
+      mode,
+      pointerX: point.x,
+      pointerY: point.y,
+      crop: { ...cropRect }
+    };
+  }
+
+  function moveCropInteraction(event: ReactPointerEvent<HTMLElement>) {
+    const interaction = cropInteractionRef.current;
+    if (!interaction || !capturedImage) return;
+    const point = imagePointerPosition(event);
+    if (!point) return;
+    event.preventDefault();
+
+    if (interaction.mode === "move") {
+      const x = clamp(
+        interaction.crop.x + point.x - interaction.pointerX,
+        0,
+        capturedImage.width - interaction.crop.width
+      );
+      const y = clamp(
+        interaction.crop.y + point.y - interaction.pointerY,
+        0,
+        capturedImage.height - interaction.crop.height
+      );
+      setCropRect({ ...interaction.crop, x, y });
+      return;
+    }
+
+    const west = interaction.mode === "nw" || interaction.mode === "sw";
+    const north = interaction.mode === "nw" || interaction.mode === "ne";
+    const anchorX = west
+      ? interaction.crop.x + interaction.crop.width
+      : interaction.crop.x;
+    const anchorY = north
+      ? interaction.crop.y + interaction.crop.height
+      : interaction.crop.y;
+    const rawWidth = Math.abs(point.x - anchorX);
+    const rawHeight = Math.abs(point.y - anchorY);
+    let width = Math.max(rawWidth, rawHeight * licenseCropRatio, minimumCropSize);
+    const maxWidth = west ? anchorX : capturedImage.width - anchorX;
+    const maxHeight = north ? anchorY : capturedImage.height - anchorY;
+    width = Math.min(width, maxWidth, maxHeight * licenseCropRatio);
+    const height = width / licenseCropRatio;
+
+    setCropRect({
+      x: west ? anchorX - width : anchorX,
+      y: north ? anchorY - height : anchorY,
+      width,
+      height
+    });
+  }
+
+  function endCropInteraction(event: ReactPointerEvent<HTMLElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    cropInteractionRef.current = null;
+  }
+
+  async function useCroppedId() {
+    if (!capturedImage || !cropRect || !cropImageRef.current) return;
+    setCropMessage("");
+
+    const outputWidth = Math.max(1, Math.round(cropRect.width));
+    const outputHeight = Math.max(1, Math.round(outputWidth / licenseCropRatio));
+    const canvas = document.createElement("canvas");
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setCropMessage("Unable to crop the captured image.");
+      return;
+    }
+
+    ctx.drawImage(
+      cropImageRef.current,
+      cropRect.x,
+      cropRect.y,
+      cropRect.width,
+      cropRect.height,
+      0,
+      0,
+      outputWidth,
+      outputHeight
+    );
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!blob) {
+      setCropMessage("Unable to save the cropped image.");
+      return;
+    }
+
+    updatePdfImage(
+      capturedImage.key,
+      new File([blob], capturedImage.name, { type: "image/jpeg" })
+    );
+    closeCropper();
   }
 
   async function generatePdf() {
@@ -543,6 +751,91 @@ export function LtmsFillerPage() {
               >
                 <Camera size={16} />
                 Capture
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {capturedImage ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/70 p-4">
+          <div className="w-full max-w-4xl rounded-lg bg-white p-4 shadow-soft">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-ink">Crop Driver&apos;s License ID</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Drag the crop area or resize it from a corner. The ratio is fixed at 2.5 × 3.
+                </p>
+              </div>
+              <button
+                className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink"
+                onClick={closeCropper}
+                type="button"
+              >
+                <X size={16} />
+                Close
+              </button>
+            </div>
+
+            <div className="grid max-h-[65vh] place-items-center overflow-auto rounded-md bg-slate-950 p-2">
+              <div className="relative inline-block max-w-full touch-none select-none">
+                <img
+                  ref={cropImageRef}
+                  alt="Captured driver's license"
+                  className="block max-h-[60vh] max-w-full"
+                  draggable={false}
+                  onLoad={initializeCrop}
+                  src={capturedImage.url}
+                />
+                {cropRect ? (
+                  <div
+                    aria-label="Draggable license crop area"
+                    className="absolute cursor-move border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
+                    onPointerDown={(event) => startCropInteraction(event, "move")}
+                    onPointerMove={moveCropInteraction}
+                    onPointerUp={endCropInteraction}
+                    onPointerCancel={endCropInteraction}
+                    style={{
+                      left: `${(cropRect.x / capturedImage.width) * 100}%`,
+                      top: `${(cropRect.y / capturedImage.height) * 100}%`,
+                      width: `${(cropRect.width / capturedImage.width) * 100}%`,
+                      height: `${(cropRect.height / capturedImage.height) * 100}%`
+                    }}
+                  >
+                    <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">
+                      {Array.from({ length: 9 }).map((_, index) => (
+                        <span key={index} className="border border-white/35" />
+                      ))}
+                    </div>
+                    {(["nw", "ne", "sw", "se"] as const).map((handle) => (
+                      <button
+                        key={handle}
+                        aria-label={`Resize crop ${handle}`}
+                        className={`absolute h-5 w-5 rounded-full border-2 border-white bg-blue-600 shadow ${
+                          handle.includes("n") ? "-top-2.5" : "-bottom-2.5"
+                        } ${handle.includes("w") ? "-left-2.5" : "-right-2.5"}`}
+                        onPointerDown={(event) => startCropInteraction(event, handle)}
+                        onPointerMove={moveCropInteraction}
+                        onPointerUp={endCropInteraction}
+                        onPointerCancel={endCropInteraction}
+                        style={{ cursor: `${handle}-resize` }}
+                        type="button"
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {cropMessage ? <p className="mt-3 text-sm text-red-600">{cropMessage}</p> : null}
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                disabled={!cropRect}
+                onClick={useCroppedId}
+                type="button"
+              >
+                <Crop size={16} />
+                Use Cropped ID
               </button>
             </div>
           </div>
