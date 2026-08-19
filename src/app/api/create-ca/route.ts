@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { google } from "googleapis";
 import { jsonError, requireAllowedUser } from "@/lib/api";
-import type { CaForm, CaPaymentKey } from "@/lib/ca-config";
+import { caTemplateDocumentIds } from "@/lib/ca-config";
+import type { CaForm, CaPaymentKey, CaTemplateType } from "@/lib/ca-config";
+import { getGoogleAuth } from "@/lib/google-sheets";
 
 export const dynamic = "force-dynamic";
 
@@ -136,12 +139,57 @@ function createPlaceholderValues(form: CaForm) {
   };
 }
 
+async function generateFromGoogleDoc(
+  templateDocumentId: string,
+  fileName: string,
+  values: Record<string, string>
+) {
+  const auth = getGoogleAuth();
+  const drive = google.drive({ version: "v3", auth });
+  const docs = google.docs({ version: "v1", auth });
+  const temporaryName = `TEMP_${fileName.replace(/\.pdf$/i, "")}_${Date.now()}`;
+  const copied = await drive.files.copy({
+    fileId: templateDocumentId,
+    supportsAllDrives: true,
+    requestBody: { name: temporaryName },
+    fields: "id"
+  });
+  const documentId = copied.data.id;
+  if (!documentId) throw new Error("Google Drive did not return a copied document ID.");
+
+  try {
+    await docs.documents.batchUpdate({
+      documentId,
+      requestBody: {
+        requests: Object.entries(values).map(([placeholder, value]) => ({
+          replaceAllText: {
+            containsText: { text: placeholder, matchCase: true },
+            replaceText: value
+          }
+        }))
+      }
+    });
+
+    const exported = await drive.files.export(
+      { fileId: documentId, mimeType: "application/pdf" },
+      { responseType: "arraybuffer" }
+    );
+    return Buffer.from(exported.data as ArrayBuffer);
+  } finally {
+    await drive.files.delete({ fileId: documentId, supportsAllDrives: true }).catch(() => undefined);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const user = await requireAllowedUser(request);
   if (user.error) return user.error;
 
   try {
-    const form = (await request.json()) as CaForm;
+    const form = (await request.json()) as CaForm & { templateType?: CaTemplateType };
+    const templateType = form.templateType ?? "bristol";
+    if (templateType !== "bristol" && templateType !== "usedSwap") {
+      return jsonError("Invalid C.A template type.");
+    }
     const required = [
       "surname",
       "firstName",
@@ -162,20 +210,38 @@ export async function POST(request: NextRequest) {
     );
     if (paymentWithoutAmount) return jsonError(`Amount is required for ${paymentWithoutAmount}.`);
 
+    const unitFileLabel = templateType === "bristol" ? "BRISTOL" : "USED_SWAP";
+    const fileName = `DREAMBIKE_CA_${unitFileLabel}_${uppercase(form.surname).replace(/\s+/g, "_")}.pdf`;
+    const values = createPlaceholderValues(form);
+
+    if (templateType === "usedSwap") {
+      const configuredTemplateId = process.env.GOOGLE_DOCS_CA_USED_SWAP_TEMPLATE_ID?.trim();
+      const pdf = await generateFromGoogleDoc(
+        configuredTemplateId || caTemplateDocumentIds.usedSwap,
+        fileName,
+        values
+      );
+      return new NextResponse(pdf, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${fileName}"`
+        }
+      });
+    }
+
     const appsScriptUrl = getAppsScriptUrl();
     const secret = process.env.CREATE_CA_APPS_SCRIPT_SECRET?.trim();
     if (!secret) {
       throw new Error("CREATE_CA_APPS_SCRIPT_SECRET is missing in Vercel.");
     }
 
-    const fileName = `DREAMBIKE_CA_${uppercase(form.surname).replace(/\s+/g, "_")}.pdf`;
     const response = await fetch(appsScriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
         secret,
         fileName,
-        values: createPlaceholderValues(form)
+        values
       }),
       cache: "no-store",
       redirect: "follow"
