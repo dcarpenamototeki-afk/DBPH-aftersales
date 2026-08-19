@@ -94,46 +94,112 @@ function drawWrappedText(
 }
 
 function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) {
-  cover(page, 413, 33, 150, 22);
-  drawFittedText(page, `DATE: ${value(values, "{{DATE}}")}`, {
-    x: 416, top: 37, maxWidth: 144, size: 10, font: fonts.regular, align: "center"
+  cover(page, 450, 42, 58, 17);
+  drawFittedText(page, value(values, "{{DATE}}"), {
+    x: 452, top: 45, maxWidth: 54, size: 10, minSize: 7, font: fonts.bold
   });
 
+  cover(page, 34, 176, 530, 34);
+  drawWrappedText(
+    page,
+    `and ${value(values, "{{BUYER_NAME}}")}, of legal age, Filipino citizen, with residence and postal address at ${value(values, "{{ADDRESS}}")} herein after referred to as \"VENDEE\"`,
+    { x: 36, top: 179, maxWidth: 524, size: 10.5, lineHeight: 13, font: fonts.regular }
+  );
+
+  cover(page, 34, 214, 530, 33);
+  drawWrappedText(
+    page,
+    `WHEREAS, the VENDEE has offered to buy and the VENDOR has agreed to sell \"3 MONTHS LIMITED WARRANTY\" of the unit and BOTH agreed for the price of: PHP ${phpValue(value(values, "{{AGREED_PRICE}}"))}`,
+    { x: 36, top: 217, maxWidth: 524, size: 10.5, lineHeight: 13, font: fonts.regular }
+  );
+
   const fields = [
-    [value(values, "{{BUYER_NAME}}"), 101, 181, 238],
-    [value(values, "{{ADDRESS}}"), 216, 195, 334],
-    [value(values, "{{AGREED_PRICE}}"), 304, 252, 247],
-    [value(values, "{{UNIT_DETAILS}}"), 219, 280, 207],
-    [value(values, "{{UNIT_COLOR}}"), 219, 308, 207],
-    [value(values, "{{ENGINE_NUMBER}}"), 219, 335, 207],
-    [value(values, "{{CHASSIS_NUMBER}}"), 219, 363, 207],
-    [value(values, "{{CONTACT_NUMBER}}"), 219, 390, 207]
+    [value(values, "{{UNIT_DETAILS}}"), 286, 275, 198],
+    [value(values, "{{UNIT_COLOR}}"), 286, 298, 198],
+    [value(values, "{{ENGINE_NUMBER}}"), 286, 321, 198],
+    [value(values, "{{CHASSIS_NUMBER}}"), 286, 344, 198],
+    [value(values, "{{CONTACT_NUMBER}}"), 286, 366, 198]
   ] as const;
   fields.forEach(([text, x, top, maxWidth]) => {
+    cover(page, x - 1, top - 3, maxWidth + 2, 16);
     drawFittedText(page, text, { x, top, maxWidth, size: 9.5, minSize: 6, font: fonts.bold });
   });
 
+  cover(page, 34, 381, 530, 350);
   const payments = [
-    ["{{DOWNPAYMENT_YES}}", "{{DOWNPAYMENT_AMOUNT}}", 431],
-    ["{{RESERVATION_YES}}", "{{RESERVATION_AMOUNT}}", 443],
-    ["{{EWB_YES}}", "{{EWB_AMOUNT}}", 454.5],
-    ["{{CASH_YES}}", "{{CASH_AMOUNT}}", 466]
+    ["DOWNPAYMENT", "{{DOWNPAYMENT_YES}}", "{{DOWNPAYMENT_AMOUNT}}"],
+    ["EWB / BANK TRANSFER", "{{EWB_YES}}", "{{EWB_AMOUNT}}"],
+    ["TOO / REG", "{{TOO_REG_YES}}", "{{TOO_REG_AMOUNT}}"],
+    ["CASH", "{{CASH_YES}}", "{{CASH_AMOUNT}}"]
   ] as const;
-  payments.forEach(([yesKey, amountKey, top]) => {
+  const paymentX = 108;
+  const paymentTop = 388;
+  const paymentHeight = 27;
+  const paymentWidths = [176, 42, 166];
+  payments.forEach(([label, yesKey, amountKey], index) => {
+    const top = paymentTop + index * paymentHeight;
+    let x = paymentX;
+    paymentWidths.forEach((width) => {
+      page.drawRectangle({
+        x,
+        y: page.getHeight() - top - paymentHeight,
+        width,
+        height: paymentHeight,
+        borderColor: black,
+        borderWidth: 0.7
+      });
+      x += width;
+    });
+    page.drawText(label, {
+      x: paymentX + 7,
+      y: pageY(page, top + 9, 8),
+      size: 8,
+      font: fonts.bold,
+      color: black
+    });
     if (value(values, yesKey)) {
-      page.drawText("X", { x: 190, y: pageY(page, top, 8), size: 8, font: fonts.bold, color: black });
+      drawFittedText(page, "X", {
+        x: paymentX + paymentWidths[0],
+        top: top + 8,
+        maxWidth: paymentWidths[1],
+        size: 10,
+        font: fonts.bold,
+        align: "center"
+      });
     }
-    drawFittedText(page, value(values, amountKey), {
-      x: 250, top, maxWidth: 62, size: 8, minSize: 6, font: fonts.regular
+    drawFittedText(page, `PHP. ${value(values, amountKey)}`, {
+      x: paymentX + paymentWidths[0] + paymentWidths[1] + 7,
+      top: top + 9,
+      maxWidth: paymentWidths[2] - 14,
+      size: 8,
+      minSize: 6,
+      font: fonts.bold
     });
   });
 
-  drawFittedText(page, value(values, "{{SELLER_NAME}}"), {
-    x: 88, top: 598, maxWidth: 166, size: 9, minSize: 6, font: fonts.bold, align: "center"
-  });
-  drawFittedText(page, value(values, "{{BUYER_NAME}}"), {
-    x: 340, top: 598, maxWidth: 166, size: 9, minSize: 6, font: fonts.bold, align: "center"
-  });
+  drawWrappedText(
+    page,
+    "NOW THEREFORE, for and in consideration of the foregoing premises and the payment of the agreed purchase price in the manner and form herein stipulated, the VENDOR hereby agrees to SELL, TRANSFER and CONVEY unto the VENDEE his heirs, assigns and successors-in-interest, and the VENDEE hereby agrees to BUY the PROPERTY subject to the following terms and conditions:",
+    { x: 36, top: 510, maxWidth: 524, size: 9, lineHeight: 11.5, font: fonts.regular }
+  );
+
+  const signatureTop = 615;
+  [[70, value(values, "{{SELLER_NAME}}"), "SELLER"], [326, value(values, "{{BUYER_NAME}}"), "BUYER"]].forEach(
+    ([x, name, label]) => {
+      page.drawLine({
+        start: { x: Number(x), y: page.getHeight() - signatureTop },
+        end: { x: Number(x) + 200, y: page.getHeight() - signatureTop },
+        thickness: 0.8,
+        color: black
+      });
+      drawFittedText(page, String(name), {
+        x: Number(x), top: signatureTop - 14, maxWidth: 200, size: 9, minSize: 6, font: fonts.bold, align: "center"
+      });
+      drawFittedText(page, String(label), {
+        x: Number(x), top: signatureTop + 7, maxWidth: 200, size: 11, font: fonts.bold, align: "center"
+      });
+    }
+  );
 }
 
 function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) {
@@ -233,20 +299,15 @@ function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts)
 }
 
 export async function generateCreateCaPdf(templateType: CaTemplateType, values: PlaceholderValues) {
-  let pdf: PDFDocument;
-  if (templateType === "bristol") {
-    const template = await readFile(
-      path.join(process.cwd(), "public", "dreambike-contract-agreement-template.pdf")
-    );
-    pdf = await PDFDocument.load(template);
-  } else {
-    pdf = await PDFDocument.create();
-    for (const fileName of ["used-swap-contract-page-1.png", "used-swap-contract-page-2.png"]) {
-      const imageBytes = await readFile(path.join(process.cwd(), "public", fileName));
-      const image = await pdf.embedPng(imageBytes);
-      const page = pdf.addPage([596, 842]);
-      page.drawImage(image, { x: 0, y: 0, width: 596, height: 842 });
-    }
+  const pdf = await PDFDocument.create();
+  const backgrounds = templateType === "bristol"
+    ? ["bristol-contract-page-1.png", "bristol-contract-page-2.png"]
+    : ["used-swap-contract-page-1.png", "used-swap-contract-page-2.png"];
+  for (const fileName of backgrounds) {
+    const imageBytes = await readFile(path.join(process.cwd(), "public", fileName));
+    const image = await pdf.embedPng(imageBytes);
+    const page = pdf.addPage([596, 842]);
+    page.drawImage(image, { x: 0, y: 0, width: 596, height: 842 });
   }
   const fonts: PdfFonts = {
     regular: await pdf.embedFont(StandardFonts.Helvetica),
