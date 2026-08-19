@@ -35,6 +35,22 @@ function cover(page: PDFPage, x: number, top: number, width: number, height: num
   });
 }
 
+function drawCheckIcon(page: PDFPage, centerX: number, centerTop: number, size = 10) {
+  const centerY = page.getHeight() - centerTop;
+  page.drawLine({
+    start: { x: centerX - size * 0.5, y: centerY },
+    end: { x: centerX - size * 0.12, y: centerY - size * 0.36 },
+    thickness: 1.7,
+    color: black
+  });
+  page.drawLine({
+    start: { x: centerX - size * 0.12, y: centerY - size * 0.36 },
+    end: { x: centerX + size * 0.55, y: centerY + size * 0.38 },
+    thickness: 1.7,
+    color: black
+  });
+}
+
 function drawFittedText(
   page: PDFPage,
   text: string,
@@ -93,6 +109,33 @@ function drawWrappedText(
   });
 }
 
+function drawWarrantyAndWitnesses(page: PDFPage, fonts: PdfFonts, warrantyTop: number) {
+  drawWrappedText(
+    page,
+    "The seller hereby warrants that the vehicle is free and clear of any liens, encumbrances, or financial obligations. Upon execution of this agreement, the buyer assumes full responsibility and releases the seller from any and all liabilities thereafter.",
+    { x: 36, top: warrantyTop, maxWidth: 524, size: 7.5, lineHeight: 9.5, font: fonts.regular }
+  );
+  drawFittedText(page, "FOR FOLLOW UP AND CONCERN PLEASE CHAT US AT OUR FACEBOOK PAGE DREAMBIKEPH", {
+    x: 36, top: warrantyTop + 34, maxWidth: 524, size: 7.5, minSize: 6, font: fonts.regular, align: "center"
+  });
+  drawFittedText(page, "https://www.facebook.com/share/1Ahiu6Pmjx/?mibextid=qi2Omg", {
+    x: 36, top: warrantyTop + 46, maxWidth: 524, size: 7, minSize: 6, font: fonts.regular, align: "center"
+  });
+
+  const witnessTop = 775;
+  [70, 326].forEach((x) => {
+    page.drawLine({
+      start: { x, y: page.getHeight() - witnessTop },
+      end: { x: x + 200, y: page.getHeight() - witnessTop },
+      thickness: 0.8,
+      color: black
+    });
+    drawFittedText(page, "WITNESS", {
+      x, top: witnessTop + 7, maxWidth: 200, size: 10, font: fonts.bold, align: "center"
+    });
+  });
+}
+
 function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) {
   cover(page, 450, 42, 58, 17);
   drawFittedText(page, value(values, "{{DATE}}"), {
@@ -103,14 +146,14 @@ function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) 
   drawWrappedText(
     page,
     `and ${value(values, "{{BUYER_NAME}}")}, of legal age, Filipino citizen, with residence and postal address at ${value(values, "{{ADDRESS}}")} herein after referred to as \"VENDEE\"`,
-    { x: 36, top: 179, maxWidth: 524, size: 10.5, lineHeight: 13, font: fonts.regular }
+    { x: 36, top: 179, maxWidth: 524, size: 10.5, lineHeight: 13, font: fonts.bold }
   );
 
   cover(page, 34, 214, 530, 33);
   drawWrappedText(
     page,
     `WHEREAS, the VENDEE has offered to buy and the VENDOR has agreed to sell \"3 MONTHS LIMITED WARRANTY\" of the unit and BOTH agreed for the price of: PHP ${phpValue(value(values, "{{AGREED_PRICE}}"))}`,
-    { x: 36, top: 217, maxWidth: 524, size: 10.5, lineHeight: 13, font: fonts.regular }
+    { x: 36, top: 217, maxWidth: 524, size: 10.5, lineHeight: 13, font: fonts.bold }
   );
 
   const fields = [
@@ -158,14 +201,7 @@ function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) 
       color: black
     });
     if (value(values, yesKey)) {
-      drawFittedText(page, "X", {
-        x: paymentX + paymentWidths[0],
-        top: top + 8,
-        maxWidth: paymentWidths[1],
-        size: 10,
-        font: fonts.bold,
-        align: "center"
-      });
+      drawCheckIcon(page, paymentX + paymentWidths[0] + paymentWidths[1] / 2, top + paymentHeight / 2, 10);
     }
     drawFittedText(page, `PHP. ${value(values, amountKey)}`, {
       x: paymentX + paymentWidths[0] + paymentWidths[1] + 7,
@@ -200,6 +236,7 @@ function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) 
       });
     }
   );
+  drawWarrantyAndWitnesses(page, fonts, 657);
 }
 
 function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) {
@@ -212,12 +249,12 @@ function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts)
   drawWrappedText(
     page,
     `and ${value(values, "{{BUYER_NAME}}")}, of legal age, Filipino citizen, with residence and postal address at ${value(values, "{{ADDRESS}}")} herein after referred to as \"VENDEE\"`,
-    { x: 36, top: 179, maxWidth: 524, size: 10, lineHeight: 13, font: fonts.regular }
+    { x: 36, top: 179, maxWidth: 524, size: 10, lineHeight: 13, font: fonts.bold }
   );
   drawWrappedText(
     page,
     `WHEREAS, the VENDEE has offered to buy and the VENDOR has agreed to sell \"AS IS WHERE IS / NO WARRANTY\" of the unit and BOTH agreed for the price of: PHP ${phpValue(value(values, "{{AGREED_PRICE}}"))}`,
-    { x: 36, top: 218, maxWidth: 524, size: 10, lineHeight: 13, font: fonts.regular }
+    { x: 36, top: 218, maxWidth: 524, size: 10, lineHeight: 13, font: fonts.bold }
   );
 
   cover(page, 30, 258, 536, 474);
@@ -270,7 +307,7 @@ function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts)
     });
     page.drawText(label, { x: paymentX + 7, y: pageY(page, top + 9, 8), size: 8, font: fonts.bold, color: black });
     if (value(values, yesKey)) {
-      page.drawText("X", { x: paymentX + paymentWidths[0] + 19, y: pageY(page, top + 8, 10), size: 10, font: fonts.bold, color: black });
+      drawCheckIcon(page, paymentX + paymentWidths[0] + paymentWidths[1] / 2, top + paymentHeight / 2, 10);
     }
     drawFittedText(page, `PHP. ${value(values, amountKey)}`, {
       x: paymentX + paymentWidths[0] + paymentWidths[1] + 7,
@@ -296,13 +333,14 @@ function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts)
       drawFittedText(page, String(label), { x: Number(x), top: signatureTop + 7, maxWidth: 200, size: 11, font: fonts.bold, align: "center" });
     }
   );
+  drawWarrantyAndWitnesses(page, fonts, 678);
 }
 
 export async function generateCreateCaPdf(templateType: CaTemplateType, values: PlaceholderValues) {
   const pdf = await PDFDocument.create();
   const backgrounds = templateType === "bristol"
-    ? ["bristol-contract-page-1.png", "bristol-contract-page-2.png"]
-    : ["used-swap-contract-page-1.png", "used-swap-contract-page-2.png"];
+    ? ["bristol-contract-page-1.png"]
+    : ["used-swap-contract-page-1.png"];
   for (const fileName of backgrounds) {
     const imageBytes = await readFile(path.join(process.cwd(), "public", fileName));
     const image = await pdf.embedPng(imageBytes);
