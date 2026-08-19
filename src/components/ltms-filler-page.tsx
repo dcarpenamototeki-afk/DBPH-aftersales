@@ -46,8 +46,6 @@ type CropInteraction = {
   crop: CropRect;
 };
 
-// A 2 x 3.5-inch ID is displayed in its usual landscape orientation.
-const licenseCropRatio = 3.5 / 2;
 const minimumCropSize = 80;
 
 const pdfImageFields: Array<{ key: PdfImageKey; label: string; generatedTitle?: string; camera?: boolean }> = [
@@ -140,13 +138,8 @@ function fitWithin(width: number, height: number, maxWidth: number, maxHeight: n
 }
 
 function initialLicenseCrop(width: number, height: number): CropRect {
-  let cropWidth = width * 0.82;
-  let cropHeight = cropWidth / licenseCropRatio;
-
-  if (cropHeight > height * 0.82) {
-    cropHeight = height * 0.82;
-    cropWidth = cropHeight * licenseCropRatio;
-  }
+  const cropWidth = width * 0.82;
+  const cropHeight = height * 0.82;
 
   return {
     x: (width - cropWidth) / 2,
@@ -462,11 +455,10 @@ export function LtmsFillerPage() {
       : interaction.crop.y;
     const rawWidth = Math.abs(point.x - anchorX);
     const rawHeight = Math.abs(point.y - anchorY);
-    let width = Math.max(rawWidth, rawHeight * licenseCropRatio, minimumCropSize);
     const maxWidth = west ? anchorX : capturedImage.width - anchorX;
     const maxHeight = north ? anchorY : capturedImage.height - anchorY;
-    width = Math.min(width, maxWidth, maxHeight * licenseCropRatio);
-    const height = width / licenseCropRatio;
+    const width = Math.min(Math.max(rawWidth, minimumCropSize), maxWidth);
+    const height = Math.min(Math.max(rawHeight, minimumCropSize), maxHeight);
 
     setCropRect({
       x: west ? anchorX - width : anchorX,
@@ -488,7 +480,7 @@ export function LtmsFillerPage() {
     setCropMessage("");
 
     const outputWidth = Math.max(1, Math.round(cropRect.width));
-    const outputHeight = Math.max(1, Math.round(outputWidth / licenseCropRatio));
+    const outputHeight = Math.max(1, Math.round(cropRect.height));
     const canvas = document.createElement("canvas");
     canvas.width = outputWidth;
     canvas.height = outputHeight;
@@ -827,7 +819,7 @@ export function LtmsFillerPage() {
               <div>
                   <h3 className="font-semibold text-ink">Crop Driver&apos;s License ID</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                  Drag the crop area or resize it from a corner. The ratio is fixed at the landscape 2 × 3.5 ID size.
+                  Drag the crop area or resize any corner freely to select the part of the image you want to use.
                 </p>
               </div>
               <button
