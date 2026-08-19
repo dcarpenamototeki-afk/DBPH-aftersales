@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { google } from "googleapis";
 import { jsonError, requireAllowedUser } from "@/lib/api";
-import { caTemplateDocumentIds } from "@/lib/ca-config";
 import type { CaForm, CaPaymentKey, CaTemplateType } from "@/lib/ca-config";
-import { getGoogleAuth } from "@/lib/google-sheets";
+import { generateCreateCaPdf } from "@/lib/create-ca-pdf";
 
 export const dynamic = "force-dynamic";
-
-const defaultAppsScriptUrl =
-  "https://script.google.com/macros/s/AKfycbyDuS16lCVj4BA3wcr19WJX1QF7o7dTo7TBJTfUXOxBjcrwLsWcSsnRYOe_k8k44he0ug/exec";
 
 const paymentKeys: CaPaymentKey[] = [
   "downpayment",
@@ -43,22 +38,6 @@ function agreedPrice(value: string) {
 function middleInitial(value: string) {
   const cleaned = uppercase(value).replace(/\./g, "");
   return cleaned ? `${cleaned}.` : "";
-}
-
-function getAppsScriptUrl() {
-  const configured = process.env.CREATE_CA_APPS_SCRIPT_URL?.trim();
-  if (!configured) return defaultAppsScriptUrl;
-
-  try {
-    const url = new URL(configured);
-    if (url.protocol === "https:" && url.hostname === "script.google.com") {
-      return url.toString();
-    }
-  } catch {
-    // Fall back to the known deployment URL when Vercel contains an invalid value.
-  }
-
-  return defaultAppsScriptUrl;
 }
 
 function paymentValues(form: CaForm, key: CaPaymentKey) {
@@ -139,47 +118,6 @@ function createPlaceholderValues(form: CaForm) {
   };
 }
 
-async function generateFromGoogleDoc(
-  templateDocumentId: string,
-  fileName: string,
-  values: Record<string, string>
-) {
-  const auth = getGoogleAuth();
-  const drive = google.drive({ version: "v3", auth });
-  const docs = google.docs({ version: "v1", auth });
-  const temporaryName = `TEMP_${fileName.replace(/\.pdf$/i, "")}_${Date.now()}`;
-  const copied = await drive.files.copy({
-    fileId: templateDocumentId,
-    supportsAllDrives: true,
-    requestBody: { name: temporaryName },
-    fields: "id"
-  });
-  const documentId = copied.data.id;
-  if (!documentId) throw new Error("Google Drive did not return a copied document ID.");
-
-  try {
-    await docs.documents.batchUpdate({
-      documentId,
-      requestBody: {
-        requests: Object.entries(values).map(([placeholder, value]) => ({
-          replaceAllText: {
-            containsText: { text: placeholder, matchCase: true },
-            replaceText: value
-          }
-        }))
-      }
-    });
-
-    const exported = await drive.files.export(
-      { fileId: documentId, mimeType: "application/pdf" },
-      { responseType: "arraybuffer" }
-    );
-    return Buffer.from(exported.data as ArrayBuffer);
-  } finally {
-    await drive.files.delete({ fileId: documentId, supportsAllDrives: true }).catch(() => undefined);
-  }
-}
-
 export async function POST(request: NextRequest) {
   const user = await requireAllowedUser(request);
   if (user.error) return user.error;
@@ -213,59 +151,11 @@ export async function POST(request: NextRequest) {
     const unitFileLabel = templateType === "bristol" ? "BRISTOL" : "USED_SWAP";
     const fileName = `DREAMBIKE_CA_${unitFileLabel}_${uppercase(form.surname).replace(/\s+/g, "_")}.pdf`;
     const values = createPlaceholderValues(form);
-
-    if (templateType === "usedSwap") {
-      const configuredTemplateId = process.env.GOOGLE_DOCS_CA_USED_SWAP_TEMPLATE_ID?.trim();
-      const pdf = await generateFromGoogleDoc(
-        configuredTemplateId || caTemplateDocumentIds.usedSwap,
-        fileName,
-        values
-      );
-      return new NextResponse(pdf, {
-        headers: {
-          "Content-Type": "application/pdf",
-          "Content-Disposition": `attachment; filename="${fileName}"`
-        }
-      });
-    }
-
-    const appsScriptUrl = getAppsScriptUrl();
-    const secret = process.env.CREATE_CA_APPS_SCRIPT_SECRET?.trim();
-    if (!secret) {
-      throw new Error("CREATE_CA_APPS_SCRIPT_SECRET is missing in Vercel.");
-    }
-
-    const response = await fetch(appsScriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        secret,
-        fileName,
-        values
-      }),
-      cache: "no-store",
-      redirect: "follow"
-    });
-    const responseText = await response.text();
-    let result: { error?: string; base64?: string; fileName?: string; mimeType?: string };
-
-    try {
-      result = JSON.parse(responseText);
-    } catch {
-      throw new Error(
-        `Apps Script returned an invalid response.${responseText ? ` ${responseText.slice(0, 140)}` : ""}`
-      );
-    }
-
-    if (!response.ok || result.error) {
-      throw new Error(result.error || `Apps Script request failed with status ${response.status}.`);
-    }
-    if (!result.base64) throw new Error("Apps Script did not return a PDF.");
-
-    return new NextResponse(Buffer.from(result.base64, "base64"), {
+    const pdf = await generateCreateCaPdf(templateType, values);
+    return new NextResponse(Buffer.from(pdf), {
       headers: {
-        "Content-Type": result.mimeType || "application/pdf",
-        "Content-Disposition": `attachment; filename="${result.fileName || fileName}"`
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${fileName}"`
       }
     });
   } catch (error) {
