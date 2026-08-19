@@ -109,20 +109,7 @@ function drawWrappedText(
   });
 }
 
-function drawWarrantyAndWitnesses(page: PDFPage, fonts: PdfFonts, warrantyTop: number) {
-  drawWrappedText(
-    page,
-    "The seller hereby warrants that the vehicle is free and clear of any liens, encumbrances, or financial obligations. Upon execution of this agreement, the buyer assumes full responsibility and releases the seller from any and all liabilities thereafter.",
-    { x: 36, top: warrantyTop, maxWidth: 524, size: 7.5, lineHeight: 9.5, font: fonts.regular }
-  );
-  drawFittedText(page, "FOR FOLLOW UP AND CONCERN PLEASE CHAT US AT OUR FACEBOOK PAGE DREAMBIKEPH", {
-    x: 36, top: warrantyTop + 34, maxWidth: 524, size: 7.5, minSize: 6, font: fonts.regular, align: "center"
-  });
-  drawFittedText(page, "https://www.facebook.com/share/1Ahiu6Pmjx/?mibextid=qi2Omg", {
-    x: 36, top: warrantyTop + 46, maxWidth: 524, size: 7, minSize: 6, font: fonts.regular, align: "center"
-  });
-
-  const witnessTop = 775;
+function drawWarrantyAndWitnesses(page: PDFPage, fonts: PdfFonts, witnessTop: number) {
   [70, 326].forEach((x) => {
     page.drawLine({
       start: { x, y: page.getHeight() - witnessTop },
@@ -133,6 +120,19 @@ function drawWarrantyAndWitnesses(page: PDFPage, fonts: PdfFonts, warrantyTop: n
     drawFittedText(page, "WITNESS", {
       x, top: witnessTop + 7, maxWidth: 200, size: 10, font: fonts.bold, align: "center"
     });
+  });
+
+  const warrantyTop = witnessTop + 38;
+  drawWrappedText(
+    page,
+    "The seller hereby warrants that the vehicle is free and clear of any liens, encumbrances, or financial obligations. Upon execution of this agreement, the buyer assumes full responsibility and releases the seller from any and all liabilities thereafter.",
+    { x: 36, top: warrantyTop, maxWidth: 524, size: 7.5, lineHeight: 9.5, font: fonts.regular }
+  );
+  drawFittedText(page, "FOR FOLLOW UP AND CONCERN PLEASE CHAT US AT OUR FACEBOOK PAGE DREAMBIKEPH", {
+    x: 36, top: warrantyTop + 34, maxWidth: 524, size: 7.5, minSize: 6, font: fonts.regular, align: "center"
+  });
+  drawFittedText(page, "https://www.facebook.com/share/1Ahiu6Pmjx/?mibextid=qi2Omg", {
+    x: 36, top: warrantyTop + 46, maxWidth: 524, size: 7, minSize: 6, font: fonts.regular, align: "center"
   });
 }
 
@@ -236,7 +236,7 @@ function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) 
       });
     }
   );
-  drawWarrantyAndWitnesses(page, fonts, 657);
+  drawWarrantyAndWitnesses(page, fonts, 690);
 }
 
 function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) {
@@ -333,7 +333,7 @@ function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts)
       drawFittedText(page, String(label), { x: Number(x), top: signatureTop + 7, maxWidth: 200, size: 11, font: fonts.bold, align: "center" });
     }
   );
-  drawWarrantyAndWitnesses(page, fonts, 678);
+  drawWarrantyAndWitnesses(page, fonts, 700);
 }
 
 export async function generateCreateCaPdf(templateType: CaTemplateType, values: PlaceholderValues) {
