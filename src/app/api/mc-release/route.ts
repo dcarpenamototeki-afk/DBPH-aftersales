@@ -51,10 +51,6 @@ function invalidDataIndex(error: unknown) {
   return match ? Number(match[1]) : -1;
 }
 
-function shouldSkipJournalWrite(column: string, row: number) {
-  return column === "V" && row === 43;
-}
-
 function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   const exact = findHeaderIndex(headers, aliases);
   if (exact >= 0) return exact;
@@ -195,7 +191,6 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
   const entries: WriteEntry[] = ([
     [`${journal}!A${journalRow}`, true, "A"],
     [`${journal}!U${journalRow}`, form.releaseDate, "U"],
-    [`${journal}!V${journalRow}`, uppercase(fixed.releaseStatus), "V"],
     [`${journal}!X${journalRow}`, uppercase(form.unitCode), "X"],
     [`${journal}!AD${journalRow}`, uppercase(fixed.releasedBy), "AD"],
     [`${journal}!AE${journalRow}`, form.amount, "AE"],
@@ -224,7 +219,7 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
     [`${journal}!BV${journalRow}`, true, "BV"],
     [`${journal}!BX${journalRow}`, uppercase(form.waiver), "BX"],
     [`${journal}!BZ${journalRow}`, true, "BZ"]
-  ] as WriteEntry[]).filter(([, , column]) => !column || !shouldSkipJournalWrite(column, journalRow));
+  ] as WriteEntry[]);
   const pending = [...entries];
   const skipped: string[] = [];
 

@@ -11,7 +11,7 @@ export const mcReleaseConfig = {
   journalLookupColumn: "X",
   journalScanColumns: ["X", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BE", "BK"],
   journalWrittenColumns: [
-    "A", "U", "V", "X", "AD", "AE", "AF", "AL", "AP", "AQ", "AR", "AS",
+    "A", "U", "X", "AD", "AE", "AF", "AL", "AP", "AQ", "AR", "AS",
     "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BD", "BE", "BF",
     "BJ", "BK", "BL", "BM", "BV", "BX", "BZ"
   ],
@@ -26,7 +26,6 @@ export const mcReleaseConfig = {
     { title: "warranty", range: "A114:AW164", scale: "4", size: "LETTER", margin: "0.10" }
   ],
   fixedValues: {
-    releaseStatus: "Unit Released",
     releasedBy: "SIR ANDREW",
     paymentType: "Cash",
     notApplicable: "N/A",
