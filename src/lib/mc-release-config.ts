@@ -7,6 +7,7 @@ export const mcReleaseConfig = {
   stocksAvailabilityStatusColumn: "S",
   journalSheet: "MC Journal",
   firstJournalRow: 43,
+  lastJournalRow: 1000,
   journalLookupColumn: "X",
   journalScanColumns: ["X", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", "BB", "BC", "BE", "BK"],
   journalWrittenColumns: [

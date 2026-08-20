@@ -137,7 +137,7 @@ async function findAvailableJournalRow(startRow: number = mcReleaseConfig.firstJ
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
   const ranges = mcReleaseConfig.journalScanColumns.map(
-    (column) => `${escapeSheetName(mcReleaseConfig.journalSheet)}!${column}${startRow}:${column}`
+    (column) => `${escapeSheetName(mcReleaseConfig.journalSheet)}!${column}${startRow}:${column}${mcReleaseConfig.lastJournalRow}`
   );
   const response = await sheets.spreadsheets.values.batchGet({
     spreadsheetId,
@@ -156,6 +156,8 @@ async function findAvailableJournalRow(startRow: number = mcReleaseConfig.firstJ
 }
 
 async function isJournalRowAvailable(row: number) {
+  if (row > mcReleaseConfig.lastJournalRow) return false;
+
   const auth = getGoogleAuth();
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
@@ -173,10 +175,13 @@ async function reserveAvailableJournalRow() {
 
   for (let attempt = 0; attempt < 10; attempt += 1) {
     if (await isJournalRowAvailable(candidate)) return candidate;
+    if (candidate >= mcReleaseConfig.lastJournalRow) break;
     candidate = await findAvailableJournalRow(candidate + 1);
   }
 
-  throw new Error("Unable to reserve a blank MC Journal row. Please try again.");
+  throw new Error(
+    `No blank editable MC Journal row is available from ${mcReleaseConfig.firstJournalRow} to ${mcReleaseConfig.lastJournalRow}.`
+  );
 }
 
 async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journalRow: number) {
