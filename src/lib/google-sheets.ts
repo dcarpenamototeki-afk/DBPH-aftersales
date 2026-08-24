@@ -11,7 +11,8 @@ export function getGoogleAuth() {
     key,
     scopes: [
       "https://www.googleapis.com/auth/spreadsheets",
-      "https://www.googleapis.com/auth/drive.readonly"
+      "https://www.googleapis.com/auth/documents",
+      "https://www.googleapis.com/auth/drive"
     ]
   });
 }
@@ -45,3 +46,4 @@ export async function getSheetIds() {
     ])
   );
 }
+

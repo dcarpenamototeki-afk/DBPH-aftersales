@@ -101,7 +101,7 @@ export function McReleasePage() {
       setMessage(body.error ?? "Unable to load motorcycle list.");
     } else {
       setCatalog(body);
-      setMessage(`Loaded ${body.motorcycles?.length ?? 0} motorcycle units.`);
+      setMessage(`Loaded ${body.motorcycles?.length ?? 0} remaining units from MC Stocks In minus MC Journal.`);
     }
     setLoadingCatalog(false);
   }, [clearPdf]);
@@ -180,7 +180,7 @@ export function McReleasePage() {
     clearPdf();
     setLastSaved(null);
     await loadCatalog();
-    setMessage(`MC Journal row ${body.journalRow} was cleared and the stock unit is available again.`);
+    setMessage(`MC Journal row ${body.journalRow} was reverted. Checkboxes were unchecked and MC Stocks In was not changed.`);
     setGenerating(false);
   }
 
@@ -281,3 +281,4 @@ export function McReleasePage() {
     </>
   );
 }
+

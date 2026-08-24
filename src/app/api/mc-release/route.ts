@@ -51,6 +51,10 @@ function invalidDataIndex(error: unknown) {
   return match ? Number(match[1]) : -1;
 }
 
+function shouldSkipJournalWrite(column: string, row: number) {
+  return column === "V" && row === 43;
+}
+
 function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   const exact = findHeaderIndex(headers, aliases);
   if (exact >= 0) return exact;
@@ -77,12 +81,21 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
   const auth = getGoogleAuth();
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
-  const response = await sheets.spreadsheets.values.get({
+  const response = await sheets.spreadsheets.values.batchGet({
     spreadsheetId,
-    range: `${escapeSheetName(mcReleaseConfig.stocksSheet)}!A:BZ`
+    ranges: [
+      `${escapeSheetName(mcReleaseConfig.stocksSheet)}!A:BZ`,
+      `${escapeSheetName(mcReleaseConfig.journalSheet)}!${mcReleaseConfig.journalLookupColumn}${mcReleaseConfig.firstJournalRow}:${mcReleaseConfig.journalLookupColumn}`
+    ]
   });
-  const rows = response.data.values ?? [];
+  const rows = response.data.valueRanges?.[0]?.values ?? [];
   if (!rows.length) return { models: [], motorcycles: [] };
+  const releasedUnitCodes = new Set(
+    (response.data.valueRanges?.[1]?.values ?? [])
+      .flat()
+      .map(normalizeSheetValue)
+      .filter(Boolean)
+  );
 
   const headerRowIndex = rows.findIndex((row) => flexibleHeaderIndex(row, headerAliases.unitCode) >= 0);
   if (headerRowIndex < 0) throw new Error("Motorcycle Unit Code column was not found in MC Stocks In.");
@@ -93,18 +106,16 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
     engineNumber: flexibleHeaderIndex(headers, headerAliases.engineNumber),
     chassisNumber: flexibleHeaderIndex(headers, headerAliases.chassisNumber),
     color: flexibleHeaderIndex(headers, headerAliases.color),
-    pnpCsrStatus: columnIndex(mcReleaseConfig.stocksPnpCsrStatusColumn),
-    availabilityStatus: columnIndex(mcReleaseConfig.stocksAvailabilityStatusColumn)
+    pnpCsrStatus: columnIndex(mcReleaseConfig.stocksPnpCsrStatusColumn)
   };
   const motorcycles: MotorcycleMatch[] = [];
   const seenUnitCodes = new Set<string>();
 
   for (let index = mcReleaseConfig.stocksFirstDataRow - 1; index < rows.length; index += 1) {
     const row = rows[index];
-    if (normalizeSheetValue(row[indexes.availabilityStatus]) !== "AVAILABLE") continue;
     const unitCode = String(row[indexes.unitCode] ?? "").trim();
     const normalizedUnitCode = normalizeSheetValue(unitCode);
-    if (!normalizedUnitCode || seenUnitCodes.has(normalizedUnitCode)) continue;
+    if (!normalizedUnitCode || releasedUnitCodes.has(normalizedUnitCode) || seenUnitCodes.has(normalizedUnitCode)) continue;
     seenUnitCodes.add(normalizedUnitCode);
     motorcycles.push({
       sourceRow: index + 1,
@@ -133,7 +144,7 @@ async function findAvailableJournalRow(startRow: number = mcReleaseConfig.firstJ
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
   const ranges = mcReleaseConfig.journalScanColumns.map(
-    (column) => `${escapeSheetName(mcReleaseConfig.journalSheet)}!${column}${startRow}:${column}${mcReleaseConfig.lastJournalRow}`
+    (column) => `${escapeSheetName(mcReleaseConfig.journalSheet)}!${column}${startRow}:${column}`
   );
   const response = await sheets.spreadsheets.values.batchGet({
     spreadsheetId,
@@ -152,8 +163,6 @@ async function findAvailableJournalRow(startRow: number = mcReleaseConfig.firstJ
 }
 
 async function isJournalRowAvailable(row: number) {
-  if (row > mcReleaseConfig.lastJournalRow) return false;
-
   const auth = getGoogleAuth();
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
@@ -171,13 +180,10 @@ async function reserveAvailableJournalRow() {
 
   for (let attempt = 0; attempt < 10; attempt += 1) {
     if (await isJournalRowAvailable(candidate)) return candidate;
-    if (candidate >= mcReleaseConfig.lastJournalRow) break;
     candidate = await findAvailableJournalRow(candidate + 1);
   }
 
-  throw new Error(
-    `No blank editable MC Journal row is available from ${mcReleaseConfig.firstJournalRow} to ${mcReleaseConfig.lastJournalRow}.`
-  );
+  throw new Error("Unable to reserve a blank MC Journal row. Please try again.");
 }
 
 async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journalRow: number) {
@@ -191,6 +197,7 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
   const entries: WriteEntry[] = ([
     [`${journal}!A${journalRow}`, true, "A"],
     [`${journal}!U${journalRow}`, form.releaseDate, "U"],
+    [`${journal}!V${journalRow}`, uppercase(fixed.releaseStatus), "V"],
     [`${journal}!X${journalRow}`, uppercase(form.unitCode), "X"],
     [`${journal}!AD${journalRow}`, uppercase(fixed.releasedBy), "AD"],
     [`${journal}!AE${journalRow}`, form.amount, "AE"],
@@ -219,7 +226,7 @@ async function writeRelease(form: McReleaseForm, motor: MotorcycleMatch, journal
     [`${journal}!BV${journalRow}`, true, "BV"],
     [`${journal}!BX${journalRow}`, uppercase(form.waiver), "BX"],
     [`${journal}!BZ${journalRow}`, true, "BZ"]
-  ] as WriteEntry[]);
+  ] as WriteEntry[]).filter(([, , column]) => !column || !shouldSkipJournalWrite(column, journalRow));
   const pending = [...entries];
   const skipped: string[] = [];
 
@@ -415,7 +422,7 @@ export async function GET(request: NextRequest) {
   try {
     if (!unitCode) return NextResponse.json(await getMotorcycleCatalog());
     const motor = await findMotorcycle(unitCode);
-    if (!motor) return jsonError("Motorcycle Unit Code was not found in MC Stocks In.", 404);
+    if (!motor) return jsonError("Motorcycle Unit Code is not in the remaining MC Stocks In inventory or is already recorded in MC Journal.", 404);
     return NextResponse.json({ motor });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Unable to read motorcycle details.", 500);
@@ -433,7 +440,7 @@ export async function POST(request: NextRequest) {
     if (missing) return jsonError(`${missing} is required.`);
 
     const motor = await findMotorcycle(form.unitCode);
-    if (!motor) return jsonError("Motorcycle Unit Code was not found in MC Stocks In.", 404);
+    if (!motor) return jsonError("Motorcycle Unit Code is not in the remaining MC Stocks In inventory or is already recorded in MC Journal.", 404);
     const journalRow = await reserveAvailableJournalRow();
     if (!(await isJournalRowAvailable(journalRow))) {
       return jsonError("The selected MC Journal row was used by another entry. Please submit again.", 409);
@@ -492,3 +499,4 @@ export async function DELETE(request: NextRequest) {
     return jsonError(error instanceof Error ? error.message : "Unable to revert the last record.", 500);
   }
 }
+
