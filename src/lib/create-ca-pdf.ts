@@ -137,9 +137,9 @@ function drawWarrantyAndWitnesses(page: PDFPage, fonts: PdfFonts, witnessTop: nu
 }
 
 function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) {
-  cover(page, 450, 42, 58, 17);
-  drawFittedText(page, value(values, "{{DATE}}"), {
-    x: 452, top: 45, maxWidth: 54, size: 10, minSize: 7, font: fonts.bold
+  cover(page, 405, 36, 160, 28);
+  drawFittedText(page, `DATE: ${value(values, "{{DATE}}")}`, {
+    x: 408, top: 42, maxWidth: 154, size: 13, minSize: 10, font: fonts.bold, align: "center"
   });
 
   cover(page, 34, 176, 530, 34);
@@ -240,9 +240,9 @@ function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) 
 }
 
 function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) {
-  cover(page, 414, 35, 145, 28);
+  cover(page, 400, 34, 165, 30);
   drawFittedText(page, `DATE: ${value(values, "{{DATE}}")}`, {
-    x: 420, top: 43, maxWidth: 133, size: 10, font: fonts.bold, align: "center"
+    x: 405, top: 42, maxWidth: 155, size: 13, minSize: 10, font: fonts.bold, align: "center"
   });
 
   cover(page, 30, 174, 536, 77);
@@ -356,3 +356,4 @@ export async function generateCreateCaPdf(templateType: CaTemplateType, values: 
   else drawUsedSwap(firstPage, values, fonts);
   return pdf.save();
 }
+
