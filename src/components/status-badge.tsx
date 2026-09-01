@@ -2,7 +2,7 @@ import { clsx } from "clsx";
 
 const green = ["YES", "COMPLETE", "AVAILABLE", "AVAIL", "RECEIVED", "TRUE", "ORCR + PLATE", "CLAIMED", "MATCHED", "MATCHED & MOVED", "RELEASED", "ARCHIVED", "CREATE", "READY", "FOR RELEASE", "PLATE AVAILABLE", "ALREADY AVAILABLE"];
 const red = ["NO", "SOLD", "INCOMPLETE", "FALSE", "UNTRACED", "NO MATCH", "DELETE"];
-const yellow = ["PENDING", "TEMPORARY", "WALK IN", "LBC", "ORCR ONLY", "PLATE ONLY", "TO FOLLOW", "NOT CHECKED", "IN PROCESS", "UPDATE", "WILL TAG AVAILABLE"];
+const yellow = ["PENDING", "TEMPORARY", "WALK IN", "LBC", "ORCR ONLY", "PLATE ONLY", "TO FOLLOW", "NOT CHECKED", "IN PROCESS", "UPDATE", "WILL TAG AVAILABLE", "WAITING PLATE", "WAITING ORCR"];
 
 export function StatusBadge({ value }: { value: unknown }) {
   const text =

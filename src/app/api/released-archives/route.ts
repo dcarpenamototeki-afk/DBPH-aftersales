@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { start, end } = dateRange(year, month);
+    dateRange(year, month);
     const supabase = getSupabaseAdmin();
     let archiveQuery = supabase
       .from("released_orcr_plate_archives")
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       supabase
         .from("orcr_plate_records")
         .select("*")
-        .or(`and(orcr_release_date.gte.${start},orcr_release_date.lt.${end}),and(plate_release_date.gte.${start},plate_release_date.lt.${end})`)
+        .or("and(orcr_release_date.not.is.null,plate_release_date.is.null),and(orcr_release_date.is.null,plate_release_date.not.is.null)")
         .order("updated_at", { ascending: false })
         .limit(5000),
       archiveQuery.order("archived_at", { ascending: false }).limit(5000)
@@ -65,11 +65,15 @@ export async function GET(request: NextRequest) {
       is_archived: false
     }));
     const archivedRows = (archived.data ?? []).map((row) => ({ ...row, is_archived: true }));
-    const data = [...activeRows, ...archivedRows].sort((left, right) =>
-      String(right.archived_at ?? right.updated_at).localeCompare(String(left.archived_at ?? left.updated_at))
-    );
+    const archives = archivedRows.sort((left, right) => String(right.archived_at).localeCompare(String(left.archived_at)));
 
-    return NextResponse.json({ data: normalizePayload(data), year, month });
+    return NextResponse.json({
+      pending: normalizePayload(activeRows),
+      archives: normalizePayload(archives),
+      data: normalizePayload([...activeRows, ...archives]),
+      year,
+      month
+    });
   } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Unable to load released archives.");
   }

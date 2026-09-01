@@ -63,9 +63,10 @@ function releaseLabel(row: OrcrPlateRecord) {
 }
 
 function plateAvailability(row: OrcrPlateRecord) {
-  if (row.plate_release_date) return "-";
-  if (row.plate_on_hand && (row.orcr_on_hand || row.orcr_release_date)) return "FOR RELEASE";
-  if (row.plate_on_hand) return "PLATE AVAILABLE";
+  if (row.orcr_release_date && row.plate_release_date) return "-";
+  if (row.orcr_release_date) return row.plate_on_hand ? "READY" : "WAITING PLATE";
+  if (row.plate_release_date) return row.orcr_on_hand ? "READY" : "WAITING ORCR";
+  if (row.plate_on_hand && row.orcr_on_hand) return "READY";
   return "-";
 }
 
@@ -86,8 +87,73 @@ function DetailRow({ label, value }: { label: string; value: unknown }) {
   );
 }
 
+function ReleasedRecordsTable({
+  rows,
+  loading = false,
+  emptyMessage,
+  onView,
+  onEdit,
+  onDelete
+}: {
+  rows: OrcrPlateRecord[];
+  loading?: boolean;
+  emptyMessage: string;
+  onView: (row: OrcrPlateRecord) => void;
+  onEdit?: (row: OrcrPlateRecord) => void;
+  onDelete?: (row: OrcrPlateRecord) => void;
+}) {
+  return (
+    <div className="max-h-[52vh] overflow-x-hidden overflow-y-auto rounded-lg border border-line bg-white shadow-soft">
+      <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs xl:text-sm">
+        <colgroup>
+          <col className="w-[9%]" /><col className="w-[11%]" /><col className="w-[20%]" />
+          <col className="w-[12%]" /><col className="w-[9%]" /><col className="w-[10%]" />
+          <col className="w-[10%]" /><col className="w-[10%]" /><col className="w-[9%]" />
+        </colgroup>
+        <thead className="sticky top-0 z-10 bg-slate-100 text-xs uppercase text-slate-600">
+          <tr>
+            {["Status", "Period", "Name", "Motorcycle", "Plate", "ORCR Released", "Plate Released", "Readiness", "Actions"].map((header) => (
+              <th key={header} className="break-words border-b border-line px-2 py-3 font-semibold">{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td className="px-3 py-6 text-slate-500" colSpan={9}>Loading records...</td></tr>
+          ) : rows.length ? rows.map((row) => (
+            <tr key={row.id} className="odd:bg-white even:bg-slate-50">
+              <td className="break-words border-b border-line px-2 py-2"><StatusBadge value={releaseLabel(row)} /></td>
+              <td className="break-words border-b border-line px-2 py-2">
+                <p className="font-semibold text-ink">{archivePeriod(row)}</p>
+                {row.is_archived ? <span className="mt-1 inline-flex"><StatusBadge value="ARCHIVED" /></span> : null}
+              </td>
+              <td className="break-words border-b border-line px-2 py-2">
+                <p className="font-semibold text-ink">{row.registered_name || "-"}</p>
+                {row.new_owner_name ? <p className="mt-1 text-slate-500">New: {row.new_owner_name}</p> : null}
+              </td>
+              <td className="break-words border-b border-line px-2 py-2">{row.motorcycle_unit_type || "-"}</td>
+              <td className="break-words border-b border-line px-2 py-2 font-semibold">{row.plate_number || "-"}</td>
+              <td className="break-words border-b border-line px-2 py-2"><p>{row.orcr_release_date ?? "-"}</p>{row.orcr_release_method ? <p className="mt-1 text-slate-500">{row.orcr_release_method}</p> : null}</td>
+              <td className="break-words border-b border-line px-2 py-2"><p>{row.plate_release_date ?? "-"}</p>{row.plate_release_method ? <p className="mt-1 text-slate-500">{row.plate_release_method}</p> : null}</td>
+              <td className="break-words border-b border-line px-2 py-2">{plateAvailability(row) === "-" ? "-" : <StatusBadge value={plateAvailability(row)} />}</td>
+              <td className="border-b border-line px-2 py-2">
+                <div className="flex flex-wrap gap-1">
+                  <button title="View Details" className="rounded-md p-2 text-slate-700 hover:bg-slate-100" onClick={() => onView(row)}><Eye size={16} /></button>
+                  {onEdit ? <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => onEdit(row)}><FilePenLine size={16} /></button> : null}
+                  {onDelete ? <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => onDelete(row)}><Trash2 size={16} /></button> : null}
+                </div>
+              </td>
+            </tr>
+          )) : <tr><td className="px-3 py-6 text-slate-500" colSpan={9}>{emptyMessage}</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function ReleasedPage() {
-  const [rows, setRows] = useState<OrcrPlateRecord[]>([]);
+  const [pendingRows, setPendingRows] = useState<OrcrPlateRecord[]>([]);
+  const [archiveRows, setArchiveRows] = useState<OrcrPlateRecord[]>([]);
   const [archiveYear, setArchiveYear] = useState(defaultArchiveYear);
   const [archiveMonth, setArchiveMonth] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -103,7 +169,8 @@ export function ReleasedPage() {
     fetch(`/api/released-archives?year=${archiveYear}&month=${archiveMonth}`)
       .then((response) => response.json())
       .then((body) => {
-        setRows(body.data ?? []);
+        setPendingRows(body.pending ?? []);
+        setArchiveRows(body.archives ?? []);
         setError(body.error ?? "");
         setLoading(false);
       })
@@ -141,7 +208,7 @@ export function ReleasedPage() {
   }
 
   function downloadArchive() {
-    if (!rows.length) {
+    if (!archiveRows.length) {
       setError("No released ORCR or plate records found for the selected archive period.");
       return;
     }
@@ -169,7 +236,7 @@ export function ReleasedPage() {
       "Plate Claimed Image Link",
       "Remarks"
     ];
-    const values = rows.map((row) => [
+    const values = archiveRows.map((row) => [
       releaseLabel(row),
       archivePeriod(row),
       row.archived_at,
@@ -203,31 +270,34 @@ export function ReleasedPage() {
     URL.revokeObjectURL(url);
   }
 
-  const released = useMemo(() => {
+  const filteredRecords = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return rows
-      .filter((row) => !filter || releaseLabel(row) === filter)
-      .filter((row) => {
-        if (!needle) return true;
-        return [
-          row.registered_name,
-          row.new_owner_name,
-          row.owner_name,
-          row.motorcycle_unit_type,
-          row.color,
-          row.engine_number,
-          row.chassis_number,
-          row.plate_number,
-          row.orcr_received_by,
-          row.plate_received_by,
-          row.orcr_claimed_image_url,
-          row.plate_claimed_image_url
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(needle);
-      });
-  }, [rows, search, filter]);
+    const matches = (row: OrcrPlateRecord) => {
+      if (filter && releaseLabel(row) !== filter) return false;
+      if (!needle) return true;
+      return [
+        row.registered_name,
+        row.new_owner_name,
+        row.owner_name,
+        row.motorcycle_unit_type,
+        row.color,
+        row.engine_number,
+        row.chassis_number,
+        row.plate_number,
+        row.orcr_received_by,
+        row.plate_received_by,
+        row.orcr_claimed_image_url,
+        row.plate_claimed_image_url
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
+    };
+    return {
+      pending: pendingRows.filter(matches),
+      archives: archiveRows.filter(matches)
+    };
+  }, [archiveRows, pendingRows, search, filter]);
 
   return (
     <>
@@ -251,7 +321,7 @@ export function ReleasedPage() {
         </div>
       </PageHeader>
       <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-        Released records are automatically removed from active ORCR / Plate Monitoring and kept here by their ORCR or plate release month.
+        Partially released records stay in Current Pending. Once both ORCR and plate are released, they automatically move to the archive month of final completion.
       </div>
       <div className="mb-4 grid gap-3 rounded-lg border border-line bg-white p-3 shadow-soft lg:grid-cols-[1fr_auto]">
         <label className="relative block">
@@ -273,6 +343,32 @@ export function ReleasedPage() {
 
       {error ? <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div> : null}
 
+      <section className="mb-6">
+        <div className="mb-2 flex items-end justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-ink">Current Pending for Release</h3>
+            <p className="text-sm text-slate-500">Records with one released item and a remaining ORCR or plate.</p>
+          </div>
+          <span className="text-sm font-semibold text-slate-500">{filteredRecords.pending.length} record(s)</span>
+        </div>
+        <ReleasedRecordsTable
+          rows={filteredRecords.pending}
+          loading={loading}
+          emptyMessage="No current records pending for release."
+          onView={(row) => setViewing(row)}
+          onEdit={(row) => setEditing(row)}
+          onDelete={(row) => setDeleting(row)}
+        />
+      </section>
+
+      <section>
+        <div className="mb-2 flex items-end justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-ink">Released ORCR / Plate Archives</h3>
+            <p className="text-sm text-slate-500">Fully released records for {archiveMonths.find((item) => item.value === archiveMonth)?.label} {archiveYear}.</p>
+          </div>
+          <span className="text-sm font-semibold text-slate-500">{filteredRecords.archives.length} record(s)</span>
+        </div>
       <div className="max-h-[calc(100vh-230px)] overflow-x-hidden overflow-y-auto rounded-lg border border-line bg-white shadow-soft">
         <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs xl:text-sm">
           <colgroup>
@@ -302,8 +398,8 @@ export function ReleasedPage() {
           <tbody>
             {loading ? (
               <tr><td className="px-3 py-6 text-slate-500" colSpan={9}>Loading released archives...</td></tr>
-            ) : released.length ? (
-              released.map((row) => (
+            ) : filteredRecords.archives.length ? (
+              filteredRecords.archives.map((row) => (
                 <tr key={row.id} className="odd:bg-white even:bg-slate-50">
                   <td className="break-words border-b border-line px-2 py-2"><StatusBadge value={releaseLabel(row)} /></td>
                   <td className="break-words border-b border-line px-2 py-2">
@@ -350,6 +446,7 @@ export function ReleasedPage() {
           </tbody>
         </table>
       </div>
+      </section>
       {editing ? (
         <RecordFormModal
           title="Edit Released Record"
