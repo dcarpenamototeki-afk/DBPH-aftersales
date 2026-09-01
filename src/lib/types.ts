@@ -114,6 +114,16 @@ export type SalesInvoiceTrackerRecord = {
   updated_at: string;
 };
 
+export type ImportantDocumentRecord = {
+  id: string;
+  document: string;
+  description: string;
+  google_drive_link: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type WarehouseInventoryRecord = {
   id: string;
   warehouse: "DB1 WAREHOUSE" | "DB2 WAREHOUSE";
@@ -139,3 +149,4 @@ export type ColumnDef<T> = {
   options?: string[];
   required?: boolean;
 };
+
