@@ -26,7 +26,7 @@ function emptyRecord<T extends Record<string, unknown>>(columns: ColumnDef<T>[])
 
 function plateAvailability(row: Record<string, unknown>) {
   if (row.plate_release_date) return "-";
-  if (row.plate_on_hand && (row.orcr_on_hand || row.orcr_release_date)) return "FOR RELEASE";
+  if (row.plate_on_hand && (row.orcr_on_hand || row.orcr_release_date)) return "READY";
   if (row.plate_on_hand) return "PLATE AVAILABLE";
   return "-";
 }

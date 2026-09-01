@@ -1,12 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, FilePenLine, Search, Trash2, X } from "lucide-react";
+import { Download, Eye, FilePenLine, Search, Trash2, X } from "lucide-react";
 import { ColumnDef, OrcrPlateRecord } from "@/lib/types";
 import { PageHeader } from "./page-header";
 import { StatusBadge } from "./status-badge";
 import { RecordFormModal } from "./record-form-modal";
 import { ConfirmDialog } from "./confirm-dialog";
+
+const archiveYears = [2026, 2027, 2028, 2029, 2030];
+const archiveMonths = [
+  { value: "ALL", label: "ALL" },
+  { value: "1", label: "Jan" },
+  { value: "2", label: "Feb" },
+  { value: "3", label: "Mar" },
+  { value: "4", label: "Apr" },
+  { value: "5", label: "May" },
+  { value: "6", label: "Jun" },
+  { value: "7", label: "Jul" },
+  { value: "8", label: "Aug" },
+  { value: "9", label: "Sep" },
+  { value: "10", label: "Oct" },
+  { value: "11", label: "Nov" },
+  { value: "12", label: "Dec" }
+];
+
+function defaultArchiveYear() {
+  const currentYear = new Date().getFullYear();
+  return archiveYears.includes(currentYear) ? String(currentYear) : "2026";
+}
 
 const releaseEditColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "registered_name", label: "Registered Name" },
@@ -60,6 +82,9 @@ function DetailRow({ label, value }: { label: string; value: unknown }) {
 
 export function ReleasedPage() {
   const [rows, setRows] = useState<OrcrPlateRecord[]>([]);
+  const [archiveYear, setArchiveYear] = useState(defaultArchiveYear);
+  const [archiveMonth, setArchiveMonth] = useState("ALL");
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Partial<OrcrPlateRecord> | null>(null);
@@ -68,14 +93,19 @@ export function ReleasedPage() {
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
-    fetch("/api/orcr")
+    setLoading(true);
+    fetch(`/api/released-archives?year=${archiveYear}&month=${archiveMonth}`)
       .then((response) => response.json())
       .then((body) => {
         setRows(body.data ?? []);
         setError(body.error ?? "");
+        setLoading(false);
       })
-      .catch(() => setError("Unable to load released records."));
-  }, []);
+      .catch(() => {
+        setError("Unable to load released archives.");
+        setLoading(false);
+      });
+  }, [archiveMonth, archiveYear]);
 
   useEffect(() => {
     load();
@@ -104,10 +134,68 @@ export function ReleasedPage() {
     load();
   }
 
+  function downloadArchive() {
+    if (!rows.length) {
+      setError("No released ORCR or plate records found for the selected archive period.");
+      return;
+    }
+
+    const headers = [
+      "Release Status",
+      "Registered Name",
+      "New Owner's Name",
+      "Motorcycle / Unit Type",
+      "Color",
+      "Engine Number",
+      "Chassis Number",
+      "Plate Number",
+      "ORCR Date Out",
+      "ORCR Mode of Claiming",
+      "ORCR LBC Tracking Number",
+      "ORCR Received By",
+      "ORCR Claimed Image Link",
+      "Plate Date Out",
+      "Plate Mode of Claiming",
+      "Plate LBC Tracking Number",
+      "Plate Received By",
+      "Plate Claimed Image Link",
+      "Remarks"
+    ];
+    const values = rows.map((row) => [
+      releaseLabel(row),
+      row.registered_name,
+      row.new_owner_name,
+      row.motorcycle_unit_type,
+      row.color,
+      row.engine_number,
+      row.chassis_number,
+      row.plate_number,
+      row.orcr_release_date,
+      row.orcr_release_method,
+      row.orcr_lbc_tracking_number,
+      row.orcr_received_by,
+      row.orcr_claimed_image_url,
+      row.plate_release_date,
+      row.plate_release_method,
+      row.plate_lbc_tracking_number,
+      row.plate_received_by,
+      row.plate_claimed_image_url,
+      row.remarks
+    ]);
+    const csv = [headers, ...values]
+      .map((line) => line.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `released-orcr-plate-${archiveYear}-${archiveMonth.toLowerCase()}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   const released = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return rows
-      .filter((row) => row.orcr_release_date || row.plate_release_date)
       .filter((row) => !filter || releaseLabel(row) === filter)
       .filter((row) => {
         if (!needle) return true;
@@ -133,7 +221,28 @@ export function ReleasedPage() {
 
   return (
     <>
-      <PageHeader title="Released ORCR / Plate" />
+      <PageHeader title="Released ORCR / Plate">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="grid gap-1 text-xs font-semibold uppercase text-slate-500">
+            Year
+            <select value={archiveYear} onChange={(event) => setArchiveYear(event.target.value)}>
+              {archiveYears.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-semibold uppercase text-slate-500">
+            Month
+            <select value={archiveMonth} onChange={(event) => setArchiveMonth(event.target.value)}>
+              {archiveMonths.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}
+            </select>
+          </label>
+          <button className="mt-5 inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={loading} onClick={downloadArchive} type="button">
+            <Download size={16} /> Download CSV
+          </button>
+        </div>
+      </PageHeader>
+      <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+        Released records are automatically removed from active ORCR / Plate Monitoring and kept here by their ORCR or plate release month.
+      </div>
       <div className="mb-4 grid gap-3 rounded-lg border border-line bg-white p-3 shadow-soft lg:grid-cols-[1fr_auto]">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-2.5 text-slate-400" size={17} />
@@ -176,7 +285,9 @@ export function ReleasedPage() {
             </tr>
           </thead>
           <tbody>
-            {released.length ? (
+            {loading ? (
+              <tr><td className="px-3 py-6 text-slate-500" colSpan={15}>Loading released archives...</td></tr>
+            ) : released.length ? (
               released.map((row) => (
                 <tr key={row.id} className="odd:bg-white even:bg-slate-50">
                   <td className="whitespace-nowrap border-b border-line px-3 py-2"><StatusBadge value={releaseLabel(row)} /></td>
