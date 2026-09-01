@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 const backupTables = [
   "orcr_plate_records",
+  "released_orcr_plate_archives",
   "sales_invoice_records",
   "sales_invoice_tracker_records",
   "sb_finance_inventory",
@@ -126,3 +127,4 @@ export async function POST(request: NextRequest) {
     warnings
   });
 }
+

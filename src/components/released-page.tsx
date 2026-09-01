@@ -30,6 +30,12 @@ function defaultArchiveYear() {
   return archiveYears.includes(currentYear) ? String(currentYear) : "2026";
 }
 
+function archivePeriod(row: OrcrPlateRecord) {
+  if (!row.archive_year || !row.archive_month) return "-";
+  const month = archiveMonths.find((item) => item.value === String(row.archive_month))?.label ?? String(row.archive_month);
+  return `${month} ${row.archive_year}`;
+}
+
 const releaseEditColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "registered_name", label: "Registered Name" },
   { key: "new_owner_name", label: "New Owner's Name" },
@@ -142,6 +148,8 @@ export function ReleasedPage() {
 
     const headers = [
       "Release Status",
+      "Archive Period",
+      "Archived At",
       "Registered Name",
       "New Owner's Name",
       "Motorcycle / Unit Type",
@@ -163,6 +171,8 @@ export function ReleasedPage() {
     ];
     const values = rows.map((row) => [
       releaseLabel(row),
+      archivePeriod(row),
+      row.archived_at,
       row.registered_name,
       row.new_owner_name,
       row.motorcycle_unit_type,
@@ -263,73 +273,76 @@ export function ReleasedPage() {
 
       {error ? <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div> : null}
 
-      <div className="table-scroll max-h-[calc(100vh-230px)] overflow-auto rounded-lg border border-line bg-white shadow-soft">
-        <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
+      <div className="max-h-[calc(100vh-230px)] overflow-x-hidden overflow-y-auto rounded-lg border border-line bg-white shadow-soft">
+        <table className="w-full table-fixed border-separate border-spacing-0 text-left text-xs xl:text-sm">
+          <colgroup>
+            <col className="w-[9%]" />
+            <col className="w-[11%]" />
+            <col className="w-[20%]" />
+            <col className="w-[12%]" />
+            <col className="w-[9%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[9%]" />
+          </colgroup>
           <thead className="sticky top-0 z-10 bg-slate-100 text-xs uppercase text-slate-600">
             <tr>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Release Status</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Release Readiness</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Registered Name</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">New Owner&apos;s Name</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Motorcycle</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Number</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">ORCR Date Out</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Mode of Claiming</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">ORCR Received by</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">ORCR Claimed</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Date Out</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Mode of Claiming</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Received by</th>
-              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Plate Claimed</th>
-              <th className="sticky right-0 border-b border-line bg-slate-100 px-3 py-3 font-semibold">Actions</th>
+              <th className="break-words border-b border-line px-2 py-3 font-semibold">Status</th>
+              <th className="break-words border-b border-line px-2 py-3 font-semibold">Archive Period</th>
+              <th className="break-words border-b border-line px-2 py-3 font-semibold">Name</th>
+              <th className="break-words border-b border-line px-2 py-3 font-semibold">Motorcycle</th>
+              <th className="break-words border-b border-line px-2 py-3 font-semibold">Plate</th>
+              <th className="break-words border-b border-line px-2 py-3 font-semibold">ORCR Released</th>
+              <th className="break-words border-b border-line px-2 py-3 font-semibold">Plate Released</th>
+              <th className="break-words border-b border-line px-2 py-3 font-semibold">Readiness</th>
+              <th className="border-b border-line px-2 py-3 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-3 py-6 text-slate-500" colSpan={15}>Loading released archives...</td></tr>
+              <tr><td className="px-3 py-6 text-slate-500" colSpan={9}>Loading released archives...</td></tr>
             ) : released.length ? (
               released.map((row) => (
                 <tr key={row.id} className="odd:bg-white even:bg-slate-50">
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2"><StatusBadge value={releaseLabel(row)} /></td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{plateAvailability(row) === "-" ? "-" : <StatusBadge value={plateAvailability(row)} />}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.registered_name}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{dash(row.new_owner_name)}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.motorcycle_unit_type}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_number}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.orcr_release_date ?? "-"}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.orcr_release_method || "-"}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{receivedBy(row.orcr_release_method, row.orcr_received_by)}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">
-                    {row.orcr_claimed_image_url ? (
-                      <a className="font-semibold text-blue-700 hover:underline" href={row.orcr_claimed_image_url} target="_blank" rel="noreferrer">IMAGE</a>
-                    ) : "-"}
+                  <td className="break-words border-b border-line px-2 py-2"><StatusBadge value={releaseLabel(row)} /></td>
+                  <td className="break-words border-b border-line px-2 py-2">
+                    <p className="font-semibold text-ink">{archivePeriod(row)}</p>
+                    {row.is_archived ? <span className="mt-1 inline-flex"><StatusBadge value="ARCHIVED" /></span> : null}
                   </td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_release_date ?? "-"}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.plate_release_method || "-"}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{receivedBy(row.plate_release_method, row.plate_received_by)}</td>
-                  <td className="whitespace-nowrap border-b border-line px-3 py-2">
-                    {row.plate_claimed_image_url ? (
-                      <a className="font-semibold text-blue-700 hover:underline" href={row.plate_claimed_image_url} target="_blank" rel="noreferrer">IMAGE</a>
-                    ) : "-"}
+                  <td className="break-words border-b border-line px-2 py-2">
+                    <p className="font-semibold text-ink">{row.registered_name || "-"}</p>
+                    {row.new_owner_name ? <p className="mt-1 text-slate-500">New: {row.new_owner_name}</p> : null}
                   </td>
-                  <td className="sticky right-0 whitespace-nowrap border-b border-line bg-inherit px-3 py-2">
-                    <div className="flex gap-1">
+                  <td className="break-words border-b border-line px-2 py-2">{row.motorcycle_unit_type || "-"}</td>
+                  <td className="break-words border-b border-line px-2 py-2 font-semibold">{row.plate_number || "-"}</td>
+                  <td className="break-words border-b border-line px-2 py-2">
+                    <p>{row.orcr_release_date ?? "-"}</p>
+                    {row.orcr_release_method ? <p className="mt-1 text-slate-500">{row.orcr_release_method}</p> : null}
+                  </td>
+                  <td className="break-words border-b border-line px-2 py-2">
+                    <p>{row.plate_release_date ?? "-"}</p>
+                    {row.plate_release_method ? <p className="mt-1 text-slate-500">{row.plate_release_method}</p> : null}
+                  </td>
+                  <td className="break-words border-b border-line px-2 py-2">{plateAvailability(row) === "-" ? "-" : <StatusBadge value={plateAvailability(row)} />}</td>
+                  <td className="border-b border-line px-2 py-2">
+                    <div className="flex flex-wrap gap-1">
                       <button title="View Details" className="rounded-md p-2 text-slate-700 hover:bg-slate-100" onClick={() => setViewing(row)}>
                         <Eye size={16} />
                       </button>
-                      <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => setEditing(row)}>
-                        <FilePenLine size={16} />
-                      </button>
-                      <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => setDeleting(row)}>
-                        <Trash2 size={16} />
-                      </button>
+                      {!row.is_archived ? (
+                        <>
+                          <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => setEditing(row)}><FilePenLine size={16} /></button>
+                          <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => setDeleting(row)}><Trash2 size={16} /></button>
+                        </>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="px-3 py-6 text-slate-500" colSpan={15}>
+                <td className="px-3 py-6 text-slate-500" colSpan={9}>
                   No released ORCR or plate records yet.
                 </td>
               </tr>
@@ -361,6 +374,8 @@ export function ReleasedPage() {
             </div>
             <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
               <DetailRow label="Name" value={viewing.registered_name} />
+              <DetailRow label="Archive Period" value={archivePeriod(viewing)} />
+              <DetailRow label="Archived At" value={viewing.archived_at} />
               <DetailRow label="New Owner's Name" value={viewing.new_owner_name} />
               <DetailRow label="Plate Number" value={viewing.plate_number} />
               <DetailRow label="Engine Number" value={viewing.engine_number} />

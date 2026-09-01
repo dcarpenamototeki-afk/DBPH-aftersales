@@ -54,25 +54,27 @@ export function Dashboard() {
 
   const loadStats = useCallback(async () => {
       const supabase = getBrowserSupabaseClient();
-      const [orcr, inventory, warehouse] = await Promise.all([
+      const [orcr, archivedOrcr, inventory, warehouse] = await Promise.all([
         supabase.from("orcr_plate_records").select("orcr_release_date,plate_release_date"),
+        supabase.from("released_orcr_plate_archives").select("id"),
         supabase.from("sb_finance_inventory").select("main_status"),
         supabase.from("dbph_warehouse_inventory").select("warehouse,status")
       ]);
 
-      if (orcr.error || inventory.error || warehouse.error) {
-        setError(orcr.error?.message ?? inventory.error?.message ?? warehouse.error?.message ?? "Unable to load dashboard totals.");
+      if (orcr.error || archivedOrcr.error || inventory.error || warehouse.error) {
+        setError(orcr.error?.message ?? archivedOrcr.error?.message ?? inventory.error?.message ?? warehouse.error?.message ?? "Unable to load dashboard totals.");
         return;
       }
 
       const orcrRows = (orcr.data ?? []) as { orcr_release_date: string | null; plate_release_date: string | null }[];
+      const archivedOrcrCount = archivedOrcr.data?.length ?? 0;
       const inventoryRows = (inventory.data ?? []) as { main_status: string | null }[];
       const warehouseRows = (warehouse.data ?? []) as { warehouse: string; status: string | null }[];
 
       setStats({
-        totalOrcr: orcrRows.length,
+        totalOrcr: orcrRows.length + archivedOrcrCount,
         activeOrcrMonitoring: orcrRows.filter((row) => !row.orcr_release_date && !row.plate_release_date).length,
-        released: orcrRows.filter((row) => row.orcr_release_date || row.plate_release_date).length,
+        released: orcrRows.filter((row) => row.orcr_release_date || row.plate_release_date).length + archivedOrcrCount,
         totalInventory: inventoryRows.length,
         available: inventoryRows.filter((row) => row.main_status !== "SOLD").length,
         sold: inventoryRows.filter((row) => row.main_status === "SOLD").length,
@@ -225,3 +227,4 @@ export function Dashboard() {
     </>
   );
 }
+

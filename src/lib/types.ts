@@ -24,6 +24,10 @@ export type OrcrPlateRecord = {
   remarks: string;
   created_at: string;
   updated_at: string;
+  archived_at?: string | null;
+  archive_year?: number;
+  archive_month?: number;
+  is_archived?: boolean;
 };
 
 export type SalesInvoiceRecord = {

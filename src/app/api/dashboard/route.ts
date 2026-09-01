@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
     totalSales,
     totalInventory,
     available,
-    sold
+    sold,
+    archivedOrcr
   ] = await Promise.all([
     count("orcr_plate_records"),
     countActiveOrcrMonitoring(),
@@ -58,19 +59,21 @@ export async function GET(request: NextRequest) {
     count("sales_invoice_records"),
     count("sb_finance_inventory"),
     count("sb_finance_inventory", { column: "main_status", value: "AVAILABLE" }),
-    count("sb_finance_inventory", { column: "main_status", value: "SOLD" })
+    count("sb_finance_inventory", { column: "main_status", value: "SOLD" }),
+    count("released_orcr_plate_archives")
   ]);
 
   return NextResponse.json({
-    totalOrcr,
+    totalOrcr: totalOrcr + archivedOrcr,
     activeOrcrMonitoring,
     orcrOnHand,
     plateOnHand,
     pendingOrcr,
-    released,
+    released: released + archivedOrcr,
     totalSales,
     totalInventory,
     available,
     sold
   });
 }
+
