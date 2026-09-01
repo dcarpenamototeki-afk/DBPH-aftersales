@@ -34,6 +34,13 @@ function releaseLabel(row: OrcrPlateRecord) {
   return "PENDING";
 }
 
+function plateAvailability(row: OrcrPlateRecord) {
+  if (row.plate_release_date) return "-";
+  if (row.plate_on_hand && (row.orcr_on_hand || row.orcr_release_date)) return "FOR RELEASE";
+  if (row.plate_on_hand) return "PLATE AVAILABLE";
+  return "-";
+}
+
 function dash(value: unknown) {
   return value ? String(value) : "-";
 }
@@ -152,6 +159,7 @@ export function ReleasedPage() {
           <thead className="sticky top-0 z-10 bg-slate-100 text-xs uppercase text-slate-600">
             <tr>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Release Status</th>
+              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Release Readiness</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Registered Name</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">New Owner&apos;s Name</th>
               <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Motorcycle</th>
@@ -172,6 +180,7 @@ export function ReleasedPage() {
               released.map((row) => (
                 <tr key={row.id} className="odd:bg-white even:bg-slate-50">
                   <td className="whitespace-nowrap border-b border-line px-3 py-2"><StatusBadge value={releaseLabel(row)} /></td>
+                  <td className="whitespace-nowrap border-b border-line px-3 py-2">{plateAvailability(row) === "-" ? "-" : <StatusBadge value={plateAvailability(row)} />}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.registered_name}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{dash(row.new_owner_name)}</td>
                   <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.motorcycle_unit_type}</td>
@@ -209,7 +218,7 @@ export function ReleasedPage() {
               ))
             ) : (
               <tr>
-                <td className="px-3 py-6 text-slate-500" colSpan={14}>
+                <td className="px-3 py-6 text-slate-500" colSpan={15}>
                   No released ORCR or plate records yet.
                 </td>
               </tr>
@@ -271,3 +280,4 @@ export function ReleasedPage() {
     </>
   );
 }
+

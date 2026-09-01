@@ -24,6 +24,13 @@ function emptyRecord<T extends Record<string, unknown>>(columns: ColumnDef<T>[])
   ) as Partial<T>;
 }
 
+function plateAvailability(row: Record<string, unknown>) {
+  if (row.plate_release_date) return "-";
+  if (row.plate_on_hand && (row.orcr_on_hand || row.orcr_release_date)) return "FOR RELEASE";
+  if (row.plate_on_hand) return "PLATE AVAILABLE";
+  return "-";
+}
+
 export function RecordModule<T extends Record<string, unknown>>({ config }: { config: Config<T> }) {
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -215,13 +222,14 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
                   {column.label}
                 </th>
               ))}
+              {config.module === "orcr" ? <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">Release Readiness</th> : null}
               <th className="sticky right-0 border-b border-line bg-slate-100 px-3 py-3 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-3 py-6 text-slate-500" colSpan={config.columns.length + 1}>
+                <td className="px-3 py-6 text-slate-500" colSpan={config.columns.length + (config.module === "orcr" ? 2 : 1)}>
                   Loading records...
                 </td>
               </tr>
@@ -237,6 +245,11 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
                       </td>
                     );
                   })}
+                  {config.module === "orcr" ? (
+                    <td className="whitespace-nowrap border-b border-line px-3 py-2">
+                      {plateAvailability(row) === "-" ? "-" : <StatusBadge value={plateAvailability(row)} />}
+                    </td>
+                  ) : null}
                   <td className="sticky right-0 whitespace-nowrap border-b border-line bg-inherit px-3 py-2">
                     <div className="flex gap-1">
                       {config.module === "orcr" ? (
@@ -261,7 +274,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
               ))
             ) : (
               <tr>
-                <td className="px-3 py-6 text-slate-500" colSpan={config.columns.length + 1}>
+                <td className="px-3 py-6 text-slate-500" colSpan={config.columns.length + (config.module === "orcr" ? 2 : 1)}>
                   No records found.
                 </td>
               </tr>
@@ -305,3 +318,4 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
     </>
   );
 }
+

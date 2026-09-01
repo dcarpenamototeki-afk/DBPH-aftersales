@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { FilePenLine, Link2, PackageCheck, Radar, Search, Trash2 } from "lucide-react";
+import { Copy, Download, FilePenLine, PackageCheck, Radar, Search, Trash2, X } from "lucide-react";
 import { ColumnDef, UnidentifiedPlateRecord } from "@/lib/types";
 import { PageHeader } from "./page-header";
 import { RecordFormModal } from "./record-form-modal";
@@ -9,13 +9,17 @@ import { ConfirmDialog } from "./confirm-dialog";
 import { StatusBadge } from "./status-badge";
 
 type Match = {
-  recordType: string;
-  recordId: string;
+  unidentifiedRecordId: string;
+  orcrRecordId: string;
+  dateReceived: string | null;
+  sourceLocation: string;
   registeredName: string;
   unit: string;
   engineNumber: string;
   chassisNumber: string;
   plateNumber: string;
+  targetArea: string;
+  alreadyAvailable: boolean;
 };
 
 const columns: ColumnDef<UnidentifiedPlateRecord>[] = [
@@ -49,8 +53,11 @@ export function UnidentifiedPlatesPage() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Partial<UnidentifiedPlateRecord> | null>(null);
   const [deleting, setDeleting] = useState<UnidentifiedPlateRecord | null>(null);
-  const [matching, setMatching] = useState<UnidentifiedPlateRecord | null>(null);
+  const [showMatches, setShowMatches] = useState(false);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [tracedCount, setTracedCount] = useState(0);
+  const [tracing, setTracing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [releasing, setReleasing] = useState<UnidentifiedPlateRecord | null>(null);
   const [releaseForm, setReleaseForm] = useState({
     release_date: new Date().toISOString().slice(0, 10),
@@ -101,49 +108,71 @@ export function UnidentifiedPlatesPage() {
     load();
   }
 
-  async function trace(row: UnidentifiedPlateRecord) {
-    const response = await fetch(`/api/plate-trace?plate=${encodeURIComponent(row.plate_number)}`);
-    const body = await response.json();
-    if (!response.ok) {
-      setError(body.error ?? "Unable to trace plate.");
-      return;
-    }
-
-    const foundMatches = (body.matches ?? []) as Match[];
-    const orcrMatches = foundMatches.filter((match) => match.recordType === "ORCR / PLATE");
-    if (orcrMatches.length === 1) {
-      await linkMatch(orcrMatches[0], row);
-      return;
-    }
-
-    setMatching(row);
-    setMatches(foundMatches);
+  async function traceAll() {
+    setTracing(true);
     setError("");
+    const response = await fetch("/api/plate-trace");
+    const body = await response.json();
+    setTracing(false);
+    if (!response.ok) {
+      setError(body.error ?? "Unable to trace plates.");
+      return;
+    }
+    setMatches((body.matches ?? []) as Match[]);
+    setTracedCount(Number(body.tracedCount ?? 0));
+    setShowMatches(true);
   }
 
-  async function linkMatch(match: Match, target = matching) {
-    if (!target) return;
-    const update = {
-      status: "MATCHED",
-      matched_registered_name: match.registeredName,
-      matched_engine_number: match.engineNumber,
-      matched_chassis_number: match.chassisNumber,
-      matched_record_type: match.recordType,
-      matched_record_id: match.recordId
-    };
-    const response = await fetch(`/api/unidentified-plates/${target.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(update)
-    });
-    if (!response.ok) {
-      const body = await response.json();
-      setError(body.error ?? "Unable to link match.");
+  async function copyPlateNumbers(plateNumbers: string[]) {
+    const uniquePlates = Array.from(new Set(plateNumbers.map((plate) => plate.trim()).filter(Boolean)));
+    if (!uniquePlates.length) {
+      setError("No plate numbers to copy.");
       return;
     }
-    setMatching(null);
+    await navigator.clipboard.writeText(uniquePlates.join("\r\n"));
+    setError(`${uniquePlates.length} plate number${uniquePlates.length === 1 ? "" : "s"} copied. Ready to paste in Notepad.`);
+  }
+
+  function downloadMatches(exported: Array<Record<string, unknown>>) {
+    const headers = ["Plate Number", "Registered Name", "Engine Number", "Chassis Number", "Tagged In", "Status"];
+    const csv = [
+      headers,
+      ...exported.map((row) => [row.plateNumber, row.registeredName, row.engineNumber, row.chassisNumber, row.taggedIn, row.status])
+    ]
+      .map((values) => values.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `plate-trace-matches-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportMatches() {
+    if (!matches.length) return;
+    setExporting(true);
+    setError("");
+    const response = await fetch("/api/plate-trace", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        matches: matches.map((match) => ({
+          unidentifiedRecordId: match.unidentifiedRecordId,
+          orcrRecordId: match.orcrRecordId
+        }))
+      })
+    });
+    const body = await response.json();
+    setExporting(false);
+    if (!response.ok) {
+      setError(body.error ?? "Unable to export traced matches.");
+      return;
+    }
+    downloadMatches(body.data ?? []);
+    setShowMatches(false);
     setMatches([]);
-    setRows((current) => current.filter((row) => row.id !== target.id));
+    setError(`${body.exportedCount ?? 0} matched plate number(s) exported and tagged as PLATE AVAILABLE.`);
     load();
   }
 
@@ -198,9 +227,12 @@ export function UnidentifiedPlatesPage() {
   return (
     <>
       <PageHeader title="Unidentified Plates">
-        <button className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => setEditing(emptyRecord())}>
-          Add Plate
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={tracing} onClick={traceAll}>
+            <Radar size={16} /> {tracing ? "Tracing..." : "Trace Match"}
+          </button>
+          <button className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => setEditing(emptyRecord())}>Add Plate</button>
+        </div>
       </PageHeader>
 
       <div className="mb-4 rounded-lg border border-line bg-white p-3 shadow-soft">
@@ -216,7 +248,13 @@ export function UnidentifiedPlatesPage() {
         <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
           <thead className="sticky top-0 z-10 bg-slate-100 text-xs uppercase text-slate-600">
             <tr>
-              {["Plate Number", "Date Received", "Source / Location", "Status", "Matched Owner", "Matched Engine / Motor", "Record Type", "Remarks"].map((header) => (
+              <th className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">
+                <span className="inline-flex items-center gap-2">
+                  Plate Number
+                  <button className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-50" onClick={() => copyPlateNumbers(untracedRows.map((row) => row.plate_number))} title="Copy all visible plate numbers" type="button"><Copy size={12} /> Copy</button>
+                </span>
+              </th>
+              {["Date Received", "Source / Location", "Status", "Matched Owner", "Matched Engine / Motor", "Record Type", "Remarks"].map((header) => (
                 <th key={header} className="whitespace-nowrap border-b border-line px-3 py-3 font-semibold">{header}</th>
               ))}
               <th className="sticky right-0 border-b border-line bg-slate-100 px-3 py-3 font-semibold">Actions</th>
@@ -235,7 +273,6 @@ export function UnidentifiedPlatesPage() {
                 <td className="whitespace-nowrap border-b border-line px-3 py-2">{row.remarks}</td>
                 <td className="sticky right-0 whitespace-nowrap border-b border-line bg-inherit px-3 py-2">
                   <div className="flex gap-1">
-                    <button title="Trace match" className="rounded-md p-2 text-emerald-700 hover:bg-emerald-50" onClick={() => trace(row)}><Radar size={16} /></button>
                     <button title="Release plate" className="rounded-md p-2 text-emerald-700 hover:bg-emerald-50" onClick={() => setReleasing(row)}><PackageCheck size={16} /></button>
                     <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => setEditing(row)}><FilePenLine size={16} /></button>
                     <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => setDeleting(row)}><Trash2 size={16} /></button>
@@ -264,25 +301,49 @@ export function UnidentifiedPlatesPage() {
         <ConfirmDialog title="Delete unidentified plate" message="This will permanently delete the selected plate record." onCancel={() => setDeleting(null)} onConfirm={deleteRecord} />
       ) : null}
 
-      {matching ? (
+      {showMatches ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink/35 p-4">
-          <div className="w-full max-w-3xl rounded-lg bg-white p-5 shadow-soft">
-            <h3 className="font-semibold text-ink">Trace Matches for {matching.plate_number}</h3>
-            <div className="mt-4 grid gap-2">
-              {matches.length ? matches.map((match) => (
-                <div key={`${match.recordType}-${match.recordId}`} className="flex items-center justify-between gap-3 rounded-md border border-line p-3 text-sm">
-                  <div>
-                    <p className="font-semibold text-ink">{match.registeredName || "No owner name"}</p>
-                    <p className="text-slate-500">{match.recordType} · {match.unit} · {match.engineNumber || "-"}</p>
-                  </div>
-                  <button className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => linkMatch(match)}>
-                    <Link2 size={16} /> Link
-                  </button>
-                </div>
-              )) : <p className="rounded-md bg-slate-50 p-4 text-sm text-slate-500">No matching record found.</p>}
+          <div className="w-full max-w-6xl overflow-hidden rounded-lg bg-white shadow-soft">
+            <div className="flex items-start justify-between border-b border-line px-5 py-4">
+              <div>
+                <h3 className="font-semibold text-ink">Plate Trace Results</h3>
+                <p className="mt-1 text-sm text-slate-500">Traced {tracedCount} unidentified plate(s). Found {new Set(matches.map((match) => match.unidentifiedRecordId)).size} matched plate(s).</p>
+              </div>
+              <button aria-label="Close" className="rounded-md p-1 text-slate-500 hover:bg-slate-100" onClick={() => setShowMatches(false)}><X size={19} /></button>
             </div>
-            <div className="mt-4 flex justify-end">
-              <button className="rounded-md border border-line px-3 py-2 text-sm font-medium" onClick={() => setMatching(null)}>Close</button>
+            {matches.length ? (
+              <div className="max-h-[60vh] overflow-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="sticky top-0 bg-slate-100 text-xs uppercase text-slate-600">
+                    <tr>
+                      {["Plate Number", "Registered Name", "Unit", "Engine Number", "Matched In", "Current Plate Status"].map((header) => (
+                        <th key={header} className="whitespace-nowrap border-b border-line px-3 py-3">{header}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matches.map((match) => (
+                      <tr key={`${match.unidentifiedRecordId}-${match.orcrRecordId}`} className="odd:bg-white even:bg-slate-50">
+                        <td className="whitespace-nowrap border-b border-line px-3 py-2 font-semibold text-ink">{match.plateNumber}</td>
+                        <td className="whitespace-nowrap border-b border-line px-3 py-2">{match.registeredName || "-"}</td>
+                        <td className="whitespace-nowrap border-b border-line px-3 py-2">{match.unit || "-"}</td>
+                        <td className="whitespace-nowrap border-b border-line px-3 py-2">{match.engineNumber || "-"}</td>
+                        <td className="whitespace-nowrap border-b border-line px-3 py-2"><StatusBadge value={match.targetArea} /></td>
+                        <td className="whitespace-nowrap border-b border-line px-3 py-2"><StatusBadge value={match.alreadyAvailable ? "ALREADY AVAILABLE" : "WILL TAG AVAILABLE"} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p className="p-6 text-sm text-slate-500">No matching plate number was found in ORCR / Plate Monitoring or Released ORCR.</p>}
+            <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-slate-50 px-5 py-4">
+              {matches.length ? (
+                <button className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-blue-700" onClick={() => copyPlateNumbers(matches.map((match) => match.plateNumber))} type="button"><Copy size={16} /> Copy Plate Numbers</button>
+              ) : null}
+              <button className="rounded-md border border-line bg-white px-3 py-2 text-sm font-medium" disabled={exporting} onClick={() => setShowMatches(false)}>Cancel</button>
+              {matches.length ? (
+                <button className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={exporting} onClick={exportMatches}><Download size={16} /> {exporting ? "Exporting..." : "Export & Tag Available"}</button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -314,3 +375,4 @@ export function UnidentifiedPlatesPage() {
     </>
   );
 }
+
