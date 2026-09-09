@@ -1,9 +1,9 @@
 import { ColumnDef, InventoryRecord, OrcrPlateRecord, SalesInvoiceRecord, UnidentifiedPlateRecord } from "./types";
 
 export const orcrColumns: ColumnDef<OrcrPlateRecord>[] = [
+  { key: "motorcycle_unit_type", label: "Motorcycle / Unit Type" },
   { key: "registered_name", label: "Registered Name", required: true },
   { key: "owner_name", label: "Owner Name" },
-  { key: "motorcycle_unit_type", label: "Motorcycle / Unit Type" },
   { key: "color", label: "Color" },
   { key: "engine_number", label: "Engine Number" },
   { key: "chassis_number", label: "Chassis Number" },
@@ -81,3 +81,4 @@ export const moduleConfig = {
     searchable: ["plate_number", "source_location", "matched_registered_name", "matched_engine_number", "matched_chassis_number"]
   }
 } as const;
+

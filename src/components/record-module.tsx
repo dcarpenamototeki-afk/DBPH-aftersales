@@ -57,12 +57,19 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
   }, [load]);
 
   const filteredRows = useMemo(() => {
-    return rows
+    const filtered = rows
       .filter((row) => config.module !== "orcr" || (!row.orcr_release_date && !row.plate_release_date))
       .filter((row) => config.module !== "inventory" || String(row.main_status ?? "AVAILABLE") !== "SOLD")
       .filter((row) =>
         Object.entries(filters).every(([key, value]) => !value || String(row[key] ?? "").toUpperCase() === value.toUpperCase())
       );
+    if (config.module !== "orcr") return filtered;
+    return [...filtered].sort((left, right) =>
+      String(left.motorcycle_unit_type ?? "").localeCompare(String(right.motorcycle_unit_type ?? ""), undefined, {
+        sensitivity: "base",
+        numeric: true
+      })
+    );
   }, [rows, filters, config.module]);
 
   async function save() {
