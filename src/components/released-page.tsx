@@ -55,6 +55,15 @@ const releaseEditColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "remarks", label: "Remarks" }
 ];
 
+function releaseEditPayload(values: Partial<OrcrPlateRecord>) {
+  return Object.fromEntries(
+    releaseEditColumns.map((column) => {
+      const value = values[column.key];
+      return [column.key, column.type === "date" && value === "" ? null : value];
+    })
+  );
+}
+
 function releaseLabel(row: OrcrPlateRecord) {
   if (row.orcr_release_date && row.plate_release_date) return "ORCR + PLATE";
   if (row.orcr_release_date) return "ORCR ONLY";
@@ -189,7 +198,7 @@ export function ReleasedPage() {
     const response = await fetch(`/api/orcr/${editing.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editing)
+      body: JSON.stringify(releaseEditPayload(editing))
     });
     if (!response.ok) {
       const body = await response.json();
