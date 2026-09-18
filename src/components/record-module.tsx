@@ -9,6 +9,7 @@ import { ConfirmDialog } from "./confirm-dialog";
 import { PageHeader } from "./page-header";
 import { ReleaseModal, ReleasePayload } from "./release-modal";
 import { SoldModal, SoldPayload } from "./sold-modal";
+import { DuplicateRecordDialog } from "./duplicate-record-dialog";
 
 type Config<T> = {
   module: ModuleKey;
@@ -17,6 +18,8 @@ type Config<T> = {
   columns: ColumnDef<T>[];
   filters: { key: keyof T; label: string; options: string[] }[];
 };
+
+type DuplicateRecord = { registered_name?: string; engine_number?: string; chassis_number?: string; plate_number?: string };
 
 function emptyRecord<T extends Record<string, unknown>>(columns: ColumnDef<T>[]) {
   return Object.fromEntries(
@@ -40,6 +43,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
   const [releasing, setReleasing] = useState<T | null>(null);
   const [selling, setSelling] = useState<T | null>(null);
   const [deleting, setDeleting] = useState<T | null>(null);
+  const [duplicate, setDuplicate] = useState<DuplicateRecord | null>(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -72,19 +76,24 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
     );
   }, [rows, filters, config.module]);
 
-  async function save() {
+  async function save(duplicateAction?: "overwrite" | "create") {
     if (!editing) return;
     const id = editing.id as string | undefined;
     const response = await fetch(id ? `${config.apiPath}/${id}` : config.apiPath, {
       method: id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editing)
+      body: JSON.stringify(duplicateAction ? { ...editing, duplicateAction } : editing)
     });
     if (!response.ok) {
       const body = await response.json();
+      if (response.status === 409 && config.module === "orcr" && body.duplicate) {
+        setDuplicate(body.duplicate as DuplicateRecord);
+        return;
+      }
       setError(body.error ?? "Unable to save record.");
       return;
     }
+    setDuplicate(null);
     setEditing(null);
     await load();
   }
@@ -298,6 +307,14 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
           onChange={(key, value) => setEditing((current) => ({ ...(current ?? {}), [key]: value } as Partial<T>))}
           onClose={() => setEditing(null)}
           onSubmit={save}
+        />
+      ) : null}
+      {duplicate ? (
+        <DuplicateRecordDialog
+          recordLabel={[duplicate.registered_name, duplicate.engine_number, duplicate.chassis_number, duplicate.plate_number].filter(Boolean).join(" · ")}
+          onCancel={() => setDuplicate(null)}
+          onOverwrite={() => save("overwrite")}
+          onCreateNew={() => save("create")}
         />
       ) : null}
       {deleting ? (
