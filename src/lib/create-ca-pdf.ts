@@ -171,7 +171,7 @@ function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) 
   cover(page, 34, 381, 530, 350);
   const payments = [
     ["DOWNPAYMENT", "{{DOWNPAYMENT_YES}}", "{{DOWNPAYMENT_AMOUNT}}"],
-    ["EWB / BANK TRANSFER", "{{EWB_YES}}", "{{EWB_AMOUNT}}"],
+    ["METROBANK / BANK TRANSFER", "{{EWB_YES}}", "{{EWB_AMOUNT}}"],
     ["TOO / REG", "{{TOO_REG_YES}}", "{{TOO_REG_AMOUNT}}"],
     ["CASH", "{{CASH_YES}}", "{{CASH_AMOUNT}}"]
   ] as const;
@@ -283,7 +283,7 @@ function drawUsedSwap(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts)
 
   const paymentRows = [
     ["DOWNPAYMENT", "{{DOWNPAYMENT_YES}}", "{{DOWNPAYMENT_AMOUNT}}"],
-    ["EWB / BANK TRANSFER", "{{EWB_YES}}", "{{EWB_AMOUNT}}"],
+    ["METROBANK / BANK TRANSFER", "{{EWB_YES}}", "{{EWB_AMOUNT}}"],
     ["TOO / REG", "{{TOO_REG_YES}}", "{{TOO_REG_AMOUNT}}"],
     ["CASH", "{{CASH_YES}}", "{{CASH_AMOUNT}}"]
   ] as const;
