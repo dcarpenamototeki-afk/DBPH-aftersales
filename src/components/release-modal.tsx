@@ -15,17 +15,22 @@ export type ReleasePayload = {
   newOwnerName: string;
   orcrImageUrl: string;
   plateImageUrl: string;
+  plateNumber: string;
   remarks: string;
 };
 
 export function ReleaseModal({
   title,
   availableTargets = ["orcr", "plate"],
+  initialPlateNumber = "",
+  submitLabel = "Save Release",
   onClose,
   onSubmit
 }: {
   title: string;
   availableTargets?: ReleaseTarget[];
+  initialPlateNumber?: string;
+  submitLabel?: string;
   onClose: () => void;
   onSubmit: (payload: ReleasePayload) => void;
 }) {
@@ -37,6 +42,7 @@ export function ReleaseModal({
   const [newOwnerName, setNewOwnerName] = useState("");
   const [orcrImageUrl, setOrcrImageUrl] = useState("");
   const [plateImageUrl, setPlateImageUrl] = useState("");
+  const [plateNumber, setPlateNumber] = useState(initialPlateNumber);
   const [remarks, setRemarks] = useState("");
 
   function toggleTarget(target: ReleaseTarget) {
@@ -48,7 +54,7 @@ export function ReleaseModal({
 
   function save() {
     if (!targets.length) return;
-    onSubmit({ targets, date, method, trackingNumber, receivedBy, newOwnerName, orcrImageUrl, plateImageUrl, remarks });
+    onSubmit({ targets, date, method, trackingNumber, receivedBy, newOwnerName, orcrImageUrl, plateImageUrl, plateNumber, remarks });
   }
 
   return (
@@ -118,10 +124,16 @@ export function ReleaseModal({
           ) : null}
 
           {targets.includes("plate") ? (
-            <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-              Insert Image Link for Plate
-              <input value={plateImageUrl} onChange={(event) => setPlateImageUrl(event.target.value)} />
-            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                Plate Number
+                <input value={plateNumber} onChange={(event) => setPlateNumber(event.target.value)} />
+              </label>
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                Insert Image Link for Plate
+                <input value={plateImageUrl} onChange={(event) => setPlateImageUrl(event.target.value)} />
+              </label>
+            </div>
           ) : null}
 
           <label className="grid gap-1.5 text-sm font-medium text-slate-700">
@@ -135,7 +147,7 @@ export function ReleaseModal({
             Cancel
           </button>
           <button className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white" onClick={save}>
-            Save Release
+            {submitLabel}
           </button>
         </div>
       </div>

@@ -237,6 +237,7 @@ export function ReleasedPage() {
       if (target === "orcr") update.orcr_on_hand = false;
       if (target === "plate") update.plate_on_hand = false;
     });
+    if (payload.targets.includes("plate") && payload.plateNumber.trim()) update.plate_number = payload.plateNumber;
     if (payload.newOwnerName) update.new_owner_name = payload.newOwnerName;
     if (payload.remarks) update.remarks = payload.remarks;
 
@@ -509,6 +510,8 @@ export function ReleasedPage() {
         <ReleaseModal
           title={completing.registered_name || completing.plate_number}
           availableTargets={remainingTargets(completing)}
+          initialPlateNumber={completing.plate_number}
+          submitLabel="Complete & Move to Archives"
           onClose={() => setCompleting(null)}
           onSubmit={completeRelease}
         />

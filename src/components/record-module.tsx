@@ -136,6 +136,8 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
       if (target === "plate") update.plate_on_hand = false;
     });
 
+    if (payload.targets.includes("plate") && payload.plateNumber.trim()) update.plate_number = payload.plateNumber;
+
     if (payload.newOwnerName) update.new_owner_name = payload.newOwnerName;
     if (payload.remarks) update.remarks = payload.remarks;
 
