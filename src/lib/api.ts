@@ -110,17 +110,24 @@ export async function createRecord(request: NextRequest, table: string) {
   return NextResponse.json({ data: normalizePayload(data) }, { status: 201 });
 }
 
-export async function updateRecord(request: NextRequest, table: string, id: string) {
+export async function updateRecord(request: NextRequest, table: string, id: string, fallbackTable?: string) {
   const auth = await requireAllowedUser(request);
   if (auth.error) return auth.error;
 
   const supabase = getSupabaseAdmin();
   const payload = normalizePayload(await request.json()) as Record<string, unknown>;
-  const { data: oldData } = await supabase.from(table).select("*").eq("id", id).single();
-  const { data, error } = await supabase.from(table).update(payload).eq("id", id).select("*").single();
+  let targetTable = table;
+  let { data: oldData } = await supabase.from(targetTable).select("*").eq("id", id).maybeSingle();
+  if (!oldData && fallbackTable) {
+    targetTable = fallbackTable;
+    ({ data: oldData } = await supabase.from(targetTable).select("*").eq("id", id).maybeSingle());
+  }
+  if (!oldData) return jsonError("Record not found.", 404);
+
+  const { data, error } = await supabase.from(targetTable).update(payload).eq("id", id).select("*").single();
   if (error) return jsonError(error.message, 500);
   await writeActivityLog({
-    table,
+    table: targetTable,
     recordId: id,
     action: "UPDATE",
     user: auth.user,

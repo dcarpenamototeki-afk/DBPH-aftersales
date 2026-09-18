@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Eye, FilePenLine, Search, Trash2, X } from "lucide-react";
+import { Download, Eye, FilePenLine, PackageCheck, Search, Trash2, X } from "lucide-react";
 import { ColumnDef, OrcrPlateRecord } from "@/lib/types";
 import { PageHeader } from "./page-header";
 import { StatusBadge } from "./status-badge";
 import { RecordFormModal } from "./record-form-modal";
 import { ConfirmDialog } from "./confirm-dialog";
+import { ReleaseModal, ReleasePayload, ReleaseTarget } from "./release-modal";
 
 const archiveYears = [2026, 2027, 2028, 2029, 2030];
 const archiveMonths = [
@@ -102,7 +103,8 @@ function ReleasedRecordsTable({
   emptyMessage,
   onView,
   onEdit,
-  onDelete
+  onDelete,
+  onComplete
 }: {
   rows: OrcrPlateRecord[];
   loading?: boolean;
@@ -110,6 +112,7 @@ function ReleasedRecordsTable({
   onView: (row: OrcrPlateRecord) => void;
   onEdit?: (row: OrcrPlateRecord) => void;
   onDelete?: (row: OrcrPlateRecord) => void;
+  onComplete?: (row: OrcrPlateRecord) => void;
 }) {
   return (
     <div className="max-h-[52vh] overflow-x-hidden overflow-y-auto rounded-lg border border-line bg-white shadow-soft">
@@ -148,6 +151,7 @@ function ReleasedRecordsTable({
               <td className="border-b border-line px-2 py-2">
                 <div className="flex flex-wrap gap-1">
                   <button title="View Details" className="rounded-md p-2 text-slate-700 hover:bg-slate-100" onClick={() => onView(row)}><Eye size={16} /></button>
+                  {onComplete ? <button title="Complete remaining release" className="inline-flex items-center gap-1 rounded-md px-2 py-2 text-emerald-700 hover:bg-emerald-50" onClick={() => onComplete(row)}><PackageCheck size={16} /><span className="text-xs font-semibold">Complete</span></button> : null}
                   {onEdit ? <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => onEdit(row)}><FilePenLine size={16} /></button> : null}
                   {onDelete ? <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => onDelete(row)}><Trash2 size={16} /></button> : null}
                 </div>
@@ -170,6 +174,7 @@ export function ReleasedPage() {
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Partial<OrcrPlateRecord> | null>(null);
   const [deleting, setDeleting] = useState<OrcrPlateRecord | null>(null);
+  const [completing, setCompleting] = useState<OrcrPlateRecord | null>(null);
   const [viewing, setViewing] = useState<OrcrPlateRecord | null>(null);
   const [error, setError] = useState("");
 
@@ -213,6 +218,39 @@ export function ReleasedPage() {
     if (!deleting) return;
     await fetch(`/api/orcr/${deleting.id}`, { method: "DELETE" });
     setDeleting(null);
+    load();
+  }
+
+  function remainingTargets(row: OrcrPlateRecord): ReleaseTarget[] {
+    return ([!row.orcr_release_date ? "orcr" : null, !row.plate_release_date ? "plate" : null].filter(Boolean) as ReleaseTarget[]);
+  }
+
+  async function completeRelease(payload: ReleasePayload) {
+    if (!completing) return;
+    const update: Record<string, unknown> = {};
+    payload.targets.forEach((target) => {
+      update[`${target}_release_date`] = payload.date;
+      update[`${target}_release_method`] = payload.method;
+      update[`${target}_lbc_tracking_number`] = payload.method === "LBC" ? payload.trackingNumber : "";
+      update[`${target}_received_by`] = payload.method === "WALK IN" ? payload.receivedBy : "";
+      update[`${target}_claimed_image_url`] = target === "orcr" ? payload.orcrImageUrl : payload.plateImageUrl;
+      if (target === "orcr") update.orcr_on_hand = false;
+      if (target === "plate") update.plate_on_hand = false;
+    });
+    if (payload.newOwnerName) update.new_owner_name = payload.newOwnerName;
+    if (payload.remarks) update.remarks = payload.remarks;
+
+    const response = await fetch(`/api/orcr/${completing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(update)
+    });
+    if (!response.ok) {
+      const body = await response.json();
+      setError(body.error ?? "Unable to complete release.");
+      return;
+    }
+    setCompleting(null);
     load();
   }
 
@@ -367,6 +405,7 @@ export function ReleasedPage() {
           onView={(row) => setViewing(row)}
           onEdit={(row) => setEditing(row)}
           onDelete={(row) => setDeleting(row)}
+          onComplete={(row) => setCompleting(row)}
         />
       </section>
 
@@ -435,9 +474,9 @@ export function ReleasedPage() {
                       <button title="View Details" className="rounded-md p-2 text-slate-700 hover:bg-slate-100" onClick={() => setViewing(row)}>
                         <Eye size={16} />
                       </button>
+                      <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => setEditing(row)}><FilePenLine size={16} /></button>
                       {!row.is_archived ? (
                         <>
-                          <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => setEditing(row)}><FilePenLine size={16} /></button>
                           <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => setDeleting(row)}><Trash2 size={16} /></button>
                         </>
                       ) : null}
@@ -464,6 +503,14 @@ export function ReleasedPage() {
           onChange={(key, value) => setEditing((current) => ({ ...(current ?? {}), [key]: value }))}
           onClose={() => setEditing(null)}
           onSubmit={saveEdit}
+        />
+      ) : null}
+      {completing ? (
+        <ReleaseModal
+          title={completing.registered_name || completing.plate_number}
+          availableTargets={remainingTargets(completing)}
+          onClose={() => setCompleting(null)}
+          onSubmit={completeRelease}
         />
       ) : null}
       {viewing ? (

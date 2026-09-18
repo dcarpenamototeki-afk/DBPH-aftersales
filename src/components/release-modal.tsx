@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 
-type ReleaseTarget = "orcr" | "plate";
+export type ReleaseTarget = "orcr" | "plate";
 type ReleaseMethod = "LBC" | "WALK IN";
 
 export type ReleasePayload = {
@@ -20,14 +20,16 @@ export type ReleasePayload = {
 
 export function ReleaseModal({
   title,
+  availableTargets = ["orcr", "plate"],
   onClose,
   onSubmit
 }: {
   title: string;
+  availableTargets?: ReleaseTarget[];
   onClose: () => void;
   onSubmit: (payload: ReleasePayload) => void;
 }) {
-  const [targets, setTargets] = useState<ReleaseTarget[]>(["orcr"]);
+  const [targets, setTargets] = useState<ReleaseTarget[]>([availableTargets[0] ?? "orcr"]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [method, setMethod] = useState<ReleaseMethod>("LBC");
   const [trackingNumber, setTrackingNumber] = useState("");
@@ -38,6 +40,7 @@ export function ReleaseModal({
   const [remarks, setRemarks] = useState("");
 
   function toggleTarget(target: ReleaseTarget) {
+    if (!availableTargets.includes(target)) return;
     setTargets((current) =>
       current.includes(target) ? current.filter((item) => item !== target) : [...current, target]
     );
@@ -65,14 +68,14 @@ export function ReleaseModal({
           <div className="grid gap-2">
             <p className="text-sm font-medium text-slate-700">Release Item</p>
             <div className="flex flex-wrap gap-2">
-              <label className="flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm">
+              {availableTargets.includes("orcr") ? <label className="flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm">
                 <input checked={targets.includes("orcr")} type="checkbox" onChange={() => toggleTarget("orcr")} />
                 ORCR
-              </label>
-              <label className="flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm">
+              </label> : null}
+              {availableTargets.includes("plate") ? <label className="flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm">
                 <input checked={targets.includes("plate")} type="checkbox" onChange={() => toggleTarget("plate")} />
                 Plate
-              </label>
+              </label> : null}
             </div>
           </div>
 
