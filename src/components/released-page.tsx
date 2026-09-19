@@ -45,6 +45,8 @@ const releaseEditColumns: ColumnDef<OrcrPlateRecord>[] = [
   { key: "engine_number", label: "Engine Number" },
   { key: "chassis_number", label: "Chassis Number" },
   { key: "plate_number", label: "Plate Number" },
+  { key: "orcr_on_hand", label: "ORCR on Hand", type: "boolean" },
+  { key: "plate_on_hand", label: "Plate on Hand", type: "boolean" },
   { key: "orcr_release_date", label: "ORCR Date Out", type: "date" },
   { key: "orcr_release_method", label: "Mode of Claiming", type: "status", options: ["LBC", "WALK IN"] },
   { key: "orcr_received_by", label: "ORCR Received By" },
