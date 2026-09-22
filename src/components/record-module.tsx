@@ -87,6 +87,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
 
   async function save(duplicateAction?: "overwrite" | "create") {
     if (!editing) return;
+    setError("");
     const id = editing.id as string | undefined;
     const payload = formPayload(config.columns, editing);
     const response = await fetch(id ? `${config.apiPath}/${id}` : config.apiPath, {
@@ -203,7 +204,10 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
           </a>
           <button
             className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white"
-            onClick={() => setEditing(emptyRecord(config.columns))}
+            onClick={() => {
+              setError("");
+              setEditing(emptyRecord(config.columns));
+            }}
           >
             <Plus size={16} />
             Add Record
@@ -316,6 +320,7 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
           title="Record Details"
           columns={config.columns}
           values={editing}
+          error={error}
           onChange={(key, value) => setEditing((current) => ({ ...(current ?? {}), [key]: value } as Partial<T>))}
           onClose={() => setEditing(null)}
           onSubmit={save}

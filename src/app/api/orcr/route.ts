@@ -29,12 +29,18 @@ export async function POST(request: NextRequest) {
   async function findDuplicate(table: "orcr_plate_records" | "released_orcr_plate_archives") {
     if (engineNumber && chassisNumber) {
       const { data, error } = await supabase.from(table).select("*").eq("engine_number", engineNumber).eq("chassis_number", chassisNumber).limit(1);
-      if (error) throw error;
+      if (error) {
+        if (table === "released_orcr_plate_archives" && (error.code === "42P01" || error.code === "PGRST205")) return null;
+        throw error;
+      }
       if (data?.[0]) return { ...data[0], duplicate_source: table };
     }
     if (plateNumber) {
       const { data, error } = await supabase.from(table).select("*").eq("plate_number", plateNumber).limit(1);
-      if (error) throw error;
+      if (error) {
+        if (table === "released_orcr_plate_archives" && (error.code === "42P01" || error.code === "PGRST205")) return null;
+        throw error;
+      }
       if (data?.[0]) return { ...data[0], duplicate_source: table };
     }
     return null;

@@ -7,6 +7,7 @@ export function RecordFormModal<T extends Record<string, unknown>>({
   title,
   columns,
   values,
+  error,
   onChange,
   onClose,
   onSubmit
@@ -14,6 +15,7 @@ export function RecordFormModal<T extends Record<string, unknown>>({
   title: string;
   columns: ColumnDef<T>[];
   values: Partial<T>;
+  error?: string;
   onChange: (key: keyof T, value: unknown) => void;
   onClose: () => void;
   onSubmit: () => void;
@@ -72,6 +74,7 @@ export function RecordFormModal<T extends Record<string, unknown>>({
             );
           })}
         </div>
+        {error ? <div className="border-t border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700">{error}</div> : null}
         <div className="flex justify-end gap-2 border-t border-line px-5 py-4">
           <button className="rounded-md border border-line px-3 py-2 text-sm font-medium" onClick={onClose}>
             Cancel
