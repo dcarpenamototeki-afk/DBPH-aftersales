@@ -76,7 +76,7 @@ export function RecordFormModal<T extends Record<string, unknown>>({
           <button className="rounded-md border border-line px-3 py-2 text-sm font-medium" onClick={onClose}>
             Cancel
           </button>
-          <button className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={onSubmit}>
+          <button className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white" onClick={() => onSubmit()}>
             Save Record
           </button>
         </div>
