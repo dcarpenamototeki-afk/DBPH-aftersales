@@ -40,6 +40,7 @@ export function normalizePayload(payload: unknown): unknown {
 
   return Object.fromEntries(
     Object.entries(payload as Record<string, unknown>).map(([key, value]) => {
+      if (typeof value === "string" && key.toLowerCase().includes("date") && !value.trim()) return [key, null];
       if (typeof value === "string" && !shouldPreserveText(key)) return [key, value.trim().toUpperCase()];
       if (value && typeof value === "object") return [key, normalizePayload(value)];
       return [key, value];

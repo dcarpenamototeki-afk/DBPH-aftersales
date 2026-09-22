@@ -23,8 +23,17 @@ type DuplicateRecord = { registered_name?: string; engine_number?: string; chass
 
 function emptyRecord<T extends Record<string, unknown>>(columns: ColumnDef<T>[]) {
   return Object.fromEntries(
-    columns.map((column) => [column.key, column.type === "boolean" ? false : column.type === "number" || column.type === "money" ? null : ""])
+    columns.map((column) => [column.key, column.type === "boolean" ? false : column.type === "date" || column.type === "number" || column.type === "money" ? null : ""])
   ) as Partial<T>;
+}
+
+function formPayload<T extends Record<string, unknown>>(columns: ColumnDef<T>[], values: Partial<T>) {
+  return Object.fromEntries(
+    columns.map((column) => {
+      const value = values[column.key];
+      return [column.key, column.type === "date" && value === "" ? null : value];
+    })
+  );
 }
 
 function plateAvailability(row: Record<string, unknown>) {
@@ -79,10 +88,11 @@ export function RecordModule<T extends Record<string, unknown>>({ config }: { co
   async function save(duplicateAction?: "overwrite" | "create") {
     if (!editing) return;
     const id = editing.id as string | undefined;
+    const payload = formPayload(config.columns, editing);
     const response = await fetch(id ? `${config.apiPath}/${id}` : config.apiPath, {
       method: id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(duplicateAction ? { ...editing, duplicateAction } : editing)
+      body: JSON.stringify(duplicateAction ? { ...payload, duplicateAction } : payload)
     });
     if (!response.ok) {
       const body = await response.json();
