@@ -48,6 +48,15 @@ function loadImage(src: string) {
   });
 }
 
+function readImageFile(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error(`Unable to read ${file.name}`));
+    reader.onerror = () => reject(new Error(`Unable to read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
 function drawCoverImage(
   context: CanvasRenderingContext2D,
   image: HTMLImageElement,
@@ -133,19 +142,13 @@ export function CatalogCardMakerPage() {
   const [resetVersion, setResetVersion] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const outputRef = useRef("");
-  const imageUrlsRef = useRef<Partial<Record<ImageKey, string>>>({});
 
   useEffect(() => {
     outputRef.current = outputUrl;
   }, [outputUrl]);
 
   useEffect(() => {
-    imageUrlsRef.current = imageUrls;
-  }, [imageUrls]);
-
-  useEffect(() => {
     return () => {
-      Object.values(imageUrlsRef.current).forEach((url) => url && URL.revokeObjectURL(url));
       if (outputRef.current) URL.revokeObjectURL(outputRef.current);
     };
   }, []);
@@ -158,7 +161,6 @@ export function CatalogCardMakerPage() {
 
   function reset() {
     clearOutput();
-    Object.values(imageUrls).forEach((url) => url && URL.revokeObjectURL(url));
     setImageUrls({});
     setForm(initialForm);
     setMessage("");
@@ -170,17 +172,22 @@ export function CatalogCardMakerPage() {
     clearOutput();
   }
 
-  function setImage(key: ImageKey, file: File | null) {
+  async function setImage(key: ImageKey, file: File | null) {
     clearOutput();
-    setImageUrls((current) => {
-      if (current[key]) URL.revokeObjectURL(current[key]!);
-      if (!file) {
+    if (!file) {
+      setImageUrls((current) => {
         const next = { ...current };
         delete next[key];
         return next;
-      }
-      return { ...current, [key]: URL.createObjectURL(file) };
-    });
+      });
+      return;
+    }
+    try {
+      const dataUrl = await readImageFile(file);
+      setImageUrls((current) => ({ ...current, [key]: dataUrl }));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to read the selected image.");
+    }
   }
 
   async function generateCard() {
