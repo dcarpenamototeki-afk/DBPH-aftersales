@@ -200,20 +200,39 @@ export function ReleasedPage() {
     load();
   }, [load]);
 
+  function applySavedRecord(record: OrcrPlateRecord, table: string) {
+    if (table === "released_orcr_plate_archives") {
+      const archivedRecord = { ...record, is_archived: true };
+      const matchesPeriod =
+        String(archivedRecord.archive_year) === archiveYear &&
+        (archiveMonth === "ALL" || String(archivedRecord.archive_month) === archiveMonth);
+      setPendingRows((current) => current.filter((row) => row.id !== archivedRecord.id));
+      setArchiveRows((current) => {
+        const remaining = current.filter((row) => row.id !== archivedRecord.id);
+        return matchesPeriod ? [archivedRecord, ...remaining] : remaining;
+      });
+      return;
+    }
+
+    setPendingRows((current) => current.map((row) => row.id === record.id ? { ...record, is_archived: false } : row));
+    setArchiveRows((current) => current.map((row) => row.id === record.id ? { ...record, is_archived: true } : row));
+  }
+
   async function saveEdit() {
     if (!editing?.id) return;
+    setError("");
     const response = await fetch(`/api/orcr/${editing.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(releaseEditPayload(editing))
     });
+    const body = await response.json();
     if (!response.ok) {
-      const body = await response.json();
       setError(body.error ?? "Unable to update released record.");
       return;
     }
+    applySavedRecord(body.data as OrcrPlateRecord, String(body.table ?? ""));
     setEditing(null);
-    load();
   }
 
   async function deleteRow() {
@@ -229,6 +248,7 @@ export function ReleasedPage() {
 
   async function completeRelease(payload: ReleasePayload) {
     if (!completing) return;
+    setError("");
     const update: Record<string, unknown> = {};
     payload.targets.forEach((target) => {
       update[`${target}_release_date`] = payload.date;
@@ -248,13 +268,13 @@ export function ReleasedPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(update)
     });
+    const body = await response.json();
     if (!response.ok) {
-      const body = await response.json();
       setError(body.error ?? "Unable to complete release.");
       return;
     }
+    applySavedRecord(body.data as OrcrPlateRecord, String(body.table ?? ""));
     setCompleting(null);
-    load();
   }
 
   function downloadArchive() {
@@ -406,9 +426,15 @@ export function ReleasedPage() {
           loading={loading}
           emptyMessage="No current records pending for release."
           onView={(row) => setViewing(row)}
-          onEdit={(row) => setEditing(row)}
+          onEdit={(row) => {
+            setError("");
+            setEditing(row);
+          }}
           onDelete={(row) => setDeleting(row)}
-          onComplete={(row) => setCompleting(row)}
+          onComplete={(row) => {
+            setError("");
+            setCompleting(row);
+          }}
         />
       </section>
 
@@ -477,7 +503,10 @@ export function ReleasedPage() {
                       <button title="View Details" className="rounded-md p-2 text-slate-700 hover:bg-slate-100" onClick={() => setViewing(row)}>
                         <Eye size={16} />
                       </button>
-                      <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => setEditing(row)}><FilePenLine size={16} /></button>
+                      <button title="Edit" className="rounded-md p-2 text-blue-700 hover:bg-blue-50" onClick={() => {
+                        setError("");
+                        setEditing(row);
+                      }}><FilePenLine size={16} /></button>
                       {!row.is_archived ? (
                         <>
                           <button title="Delete" className="rounded-md p-2 text-rose-700 hover:bg-rose-50" onClick={() => setDeleting(row)}><Trash2 size={16} /></button>
@@ -503,6 +532,7 @@ export function ReleasedPage() {
           title="Edit Released Record"
           columns={releaseEditColumns}
           values={editing}
+          error={error}
           onChange={(key, value) => setEditing((current) => ({ ...(current ?? {}), [key]: value }))}
           onClose={() => setEditing(null)}
           onSubmit={saveEdit}
@@ -514,6 +544,7 @@ export function ReleasedPage() {
           availableTargets={remainingTargets(completing)}
           initialPlateNumber={completing.plate_number}
           submitLabel="Complete & Move to Archives"
+          error={error}
           onClose={() => setCompleting(null)}
           onSubmit={completeRelease}
         />

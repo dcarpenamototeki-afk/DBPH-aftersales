@@ -24,6 +24,7 @@ export function ReleaseModal({
   availableTargets = ["orcr", "plate"],
   initialPlateNumber = "",
   submitLabel = "Save Release",
+  error,
   onClose,
   onSubmit
 }: {
@@ -31,6 +32,7 @@ export function ReleaseModal({
   availableTargets?: ReleaseTarget[];
   initialPlateNumber?: string;
   submitLabel?: string;
+  error?: string;
   onClose: () => void;
   onSubmit: (payload: ReleasePayload) => void;
 }) {
@@ -142,6 +144,7 @@ export function ReleaseModal({
           </label>
         </div>
 
+        {error ? <div className="border-t border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700">{error}</div> : null}
         <div className="flex justify-end gap-2 border-t border-line px-5 py-4">
           <button className="rounded-md border border-line px-3 py-2 text-sm font-medium" onClick={onClose}>
             Cancel

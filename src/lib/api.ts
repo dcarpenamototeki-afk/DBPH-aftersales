@@ -125,8 +125,27 @@ export async function updateRecord(request: NextRequest, table: string, id: stri
   }
   if (!oldData) return jsonError("Record not found.", 404);
 
-  const { data, error } = await supabase.from(targetTable).update(payload).eq("id", id).select("*").single();
+  let { data, error } = await supabase.from(targetTable).update(payload).eq("id", id).select("*").maybeSingle();
   if (error) return jsonError(error.message, 500);
+
+  // A database trigger moves fully released ORCR/plate rows into the archive
+  // during the update. In that case the active-table UPDATE returns no row,
+  // so resolve the newly archived row before reporting success.
+  const completedRelease = Boolean(
+    fallbackTable &&
+    (data?.orcr_release_date ?? payload.orcr_release_date ?? oldData.orcr_release_date) &&
+    (data?.plate_release_date ?? payload.plate_release_date ?? oldData.plate_release_date)
+  );
+  if (fallbackTable && targetTable === table && (!data || completedRelease)) {
+    const archived = await supabase.from(fallbackTable).select("*").eq("id", id).maybeSingle();
+    if (archived.error) return jsonError(archived.error.message, 500);
+    if (archived.data) {
+      targetTable = fallbackTable;
+      data = archived.data;
+    }
+  }
+  if (!data) return jsonError("Record was updated but could not be reloaded.", 500);
+
   await writeActivityLog({
     table: targetTable,
     recordId: id,
@@ -135,7 +154,7 @@ export async function updateRecord(request: NextRequest, table: string, id: stri
     oldData: normalizePayload(oldData),
     newData: normalizePayload(data)
   });
-  return NextResponse.json({ data: normalizePayload(data) });
+  return NextResponse.json({ data: normalizePayload(data), table: targetTable });
 }
 
 export async function deleteRecord(request: NextRequest, table: string, id: string) {

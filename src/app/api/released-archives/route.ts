@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       pending: normalizePayload(activeRows),
       archives: normalizePayload(archives),
-      data: normalizePayload([...activeRows, ...archives]),
       year,
       month
     });
