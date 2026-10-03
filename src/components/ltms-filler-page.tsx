@@ -99,7 +99,7 @@ async function renderTemplate(template: LtmsTemplateConfig, values: Record<LtmsF
     const value = values[coordinate.field].trim();
     if (!value) return;
 
-    ctx.font = coordinate.fontSize ? `${coordinate.fontSize}px Arial` : template.font;
+    ctx.font = coordinate.fontSize ? `bold ${coordinate.fontSize}px Arial` : template.font;
     ctx.fillText(fitText(ctx, value.toUpperCase(), coordinate.maxWidth), coordinate.x, coordinate.y);
   });
 

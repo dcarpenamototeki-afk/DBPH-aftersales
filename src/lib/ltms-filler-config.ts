@@ -62,7 +62,7 @@ export const ltmsTemplates: LtmsTemplateConfig[] = [
     title: "LTMS Page 1",
     imagePath: "/ltms_p1.png",
     outputName: "filled_ltms_p1.png",
-    font: "26px Arial",
+    font: "bold 26px Arial",
     fillStyle: "#111827",
     coordinates: [
       { field: "ltoClientId", x: 78, y: 376, maxWidth: 470 },
@@ -77,16 +77,16 @@ export const ltmsTemplates: LtmsTemplateConfig[] = [
     title: "LTMS Page 2",
     imagePath: "/ltms_p2.png",
     outputName: "filled_ltms_p2.png",
-    font: "30px Arial",
+    font: "bold 30px Arial",
     fillStyle: "#111827",
     coordinates: [
       { field: "registeredAddressLicense", x: 92, y: 347, maxWidth: 625, fontSize: 25 },
-      { field: "houseNo", x: 92, y: 888, maxWidth: 625 },
-      { field: "streetVillage", x: 92, y: 1010, maxWidth: 625 },
-      { field: "province", x: 92, y: 1154, maxWidth: 625 },
-      { field: "cityMunicipality", x: 92, y: 1289, maxWidth: 625 },
-      { field: "barangay", x: 92, y: 1421, maxWidth: 625 },
-      { field: "zipCode", x: 92, y: 1558, maxWidth: 625 }
+      { field: "houseNo", x: 92, y: 900, maxWidth: 625 },
+      { field: "streetVillage", x: 92, y: 1022, maxWidth: 625 },
+      { field: "province", x: 92, y: 1166, maxWidth: 625 },
+      { field: "cityMunicipality", x: 92, y: 1301, maxWidth: 625 },
+      { field: "barangay", x: 92, y: 1433, maxWidth: 625 },
+      { field: "zipCode", x: 92, y: 1570, maxWidth: 625 }
     ]
   }
 ];
