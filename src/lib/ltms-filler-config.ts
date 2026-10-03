@@ -83,10 +83,10 @@ export const ltmsTemplates: LtmsTemplateConfig[] = [
       { field: "registeredAddressLicense", x: 92, y: 347, maxWidth: 625, fontSize: 25 },
       { field: "houseNo", x: 92, y: 888, maxWidth: 625 },
       { field: "streetVillage", x: 92, y: 1010, maxWidth: 625 },
-      { field: "province", x: 92, y: 1135, maxWidth: 625 },
-      { field: "cityMunicipality", x: 92, y: 1257, maxWidth: 625 },
-      { field: "barangay", x: 92, y: 1380, maxWidth: 625 },
-      { field: "zipCode", x: 92, y: 1517, maxWidth: 625 }
+      { field: "province", x: 92, y: 1154, maxWidth: 625 },
+      { field: "cityMunicipality", x: 92, y: 1289, maxWidth: 625 },
+      { field: "barangay", x: 92, y: 1421, maxWidth: 625 },
+      { field: "zipCode", x: 92, y: 1558, maxWidth: 625 }
     ]
   }
 ];
