@@ -5,6 +5,7 @@ export type LtmsFieldKey =
   | "middleName"
   | "email"
   | "mobile"
+  | "registeredAddressLicense"
   | "houseNo"
   | "streetVillage"
   | "province"
@@ -42,6 +43,7 @@ export const ltmsFields: LtmsFieldDefinition[] = [
   { key: "middleName", label: "Middle Name" },
   { key: "email", label: "Email", inputType: "email" },
   { key: "mobile", label: "Mobile", inputType: "tel" },
+  { key: "registeredAddressLicense", label: "Registered Address (License)" },
   { key: "houseNo", label: "House No" },
   { key: "streetVillage", label: "Street/Village" },
   { key: "province", label: "Province" },
@@ -75,15 +77,16 @@ export const ltmsTemplates: LtmsTemplateConfig[] = [
     title: "LTMS Page 2",
     imagePath: "/ltms_p2.png",
     outputName: "filled_ltms_p2.png",
-    font: "26px Arial",
+    font: "30px Arial",
     fillStyle: "#111827",
     coordinates: [
-      { field: "houseNo", x: 78, y: 533, maxWidth: 470 },
-      { field: "streetVillage", x: 78, y: 654, maxWidth: 470 },
-      { field: "province", x: 78, y: 776, maxWidth: 470 },
-      { field: "cityMunicipality", x: 78, y: 898, maxWidth: 470 },
-      { field: "barangay", x: 78, y: 1020, maxWidth: 470 },
-      { field: "zipCode", x: 78, y: 1142, maxWidth: 470 }
+      { field: "registeredAddressLicense", x: 92, y: 347, maxWidth: 625, fontSize: 25 },
+      { field: "houseNo", x: 92, y: 888, maxWidth: 625 },
+      { field: "streetVillage", x: 92, y: 1010, maxWidth: 625 },
+      { field: "province", x: 92, y: 1135, maxWidth: 625 },
+      { field: "cityMunicipality", x: 92, y: 1257, maxWidth: 625 },
+      { field: "barangay", x: 92, y: 1380, maxWidth: 625 },
+      { field: "zipCode", x: 92, y: 1517, maxWidth: 625 }
     ]
   }
 ];
