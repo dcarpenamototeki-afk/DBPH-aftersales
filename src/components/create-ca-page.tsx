@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, FileCheck2, X } from "lucide-react";
 import type { CaForm, CaPaymentKey, CaTemplateType } from "@/lib/ca-config";
+import type { MotorcycleCatalog, MotorcycleMatch } from "@/lib/mc-release-config";
 import { PageHeader } from "./page-header";
 
 const emptyForm: CaForm = {
@@ -38,6 +39,10 @@ export function CreateCaPage() {
   const [pdfName, setPdfName] = useState("DREAMBIKE_CA.pdf");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState<CaTemplateType | null>(null);
+  const [journalUnits, setJournalUnits] = useState<MotorcycleMatch[]>([]);
+  const [selectedUnitCode, setSelectedUnitCode] = useState("");
+  const [loadingUnits, setLoadingUnits] = useState(true);
+  const [unitMessage, setUnitMessage] = useState("");
   const pdfRef = useRef("");
 
   useEffect(() => {
@@ -46,6 +51,34 @@ export function CreateCaPage() {
 
   useEffect(() => () => {
     if (pdfRef.current) URL.revokeObjectURL(pdfRef.current);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingUnits(true);
+    fetch("/api/mc-release?source=journal")
+      .then(async (response) => {
+        const body = await response.json() as MotorcycleCatalog & { error?: string };
+        if (!response.ok) throw new Error(body.error ?? "Unable to load MC Journal units.");
+        if (!active) return;
+        const units = [...(body.motorcycles ?? [])].sort((left, right) =>
+          left.unitModel.localeCompare(right.unitModel, undefined, { sensitivity: "base", numeric: true }) ||
+          left.unitCode.localeCompare(right.unitCode, undefined, { sensitivity: "base", numeric: true })
+        );
+        setJournalUnits(units);
+        setUnitMessage(units.length ? `${units.length} MC Journal unit(s) available.` : "No matching MC Journal units found.");
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setJournalUnits([]);
+        setUnitMessage(error instanceof Error ? error.message : "Unable to load MC Journal units.");
+      })
+      .finally(() => {
+        if (active) setLoadingUnits(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   function setValue(key: keyof Omit<CaForm, "payments">, value: string) {
@@ -68,6 +101,22 @@ export function CreateCaPage() {
   function reset() {
     clearPdf();
     setForm(emptyForm);
+    setSelectedUnitCode("");
+    setMessage("");
+  }
+
+  function selectJournalUnit(unitCode: string) {
+    setSelectedUnitCode(unitCode);
+    const unit = journalUnits.find((item) => item.unitCode === unitCode);
+    if (!unit) return;
+    clearPdf();
+    setForm((current) => ({
+      ...current,
+      unitDetails: unit.unitModel,
+      unitColor: unit.color,
+      engineNumber: unit.engineNumber,
+      chassisNumber: unit.chassisNumber
+    }));
     setMessage("");
   }
 
@@ -116,6 +165,18 @@ export function CreateCaPage() {
 
           <h3 className="mb-3 mt-5 font-semibold text-ink">Unit Details</h3>
           <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1.5 text-sm font-medium text-slate-700 sm:col-span-2">
+              Unit Model from MC Journal
+              <select disabled={loadingUnits} value={selectedUnitCode} onChange={(event) => selectJournalUnit(event.target.value)}>
+                <option value="">{loadingUnits ? "Loading MC Journal units..." : "Select unit model"}</option>
+                {journalUnits.map((unit) => (
+                  <option key={unit.unitCode} value={unit.unitCode}>
+                    {[unit.unitModel, unit.unitCode, unit.engineNumber].filter(Boolean).join(" — ")}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs font-normal text-slate-500">{unitMessage}</span>
+            </label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Agreed Price<input placeholder="P 0.00 or SWAP UNIT" value={form.agreedPrice} onChange={(event) => setValue("agreedPrice", event.target.value)} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Unit Details<input value={form.unitDetails} onChange={(event) => setValue("unitDetails", event.target.value)} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Unit Color<input value={form.unitColor} onChange={(event) => setValue("unitColor", event.target.value)} /></label>

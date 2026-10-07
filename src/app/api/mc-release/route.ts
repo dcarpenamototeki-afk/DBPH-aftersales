@@ -77,7 +77,7 @@ async function findMotorcycle(unitCode: string): Promise<MotorcycleMatch | null>
   return catalog.motorcycles.find((motorcycle) => normalizeSheetValue(motorcycle.unitCode) === target) ?? null;
 }
 
-async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
+async function getMotorcycleCatalog(source: "remaining" | "journal" = "remaining"): Promise<MotorcycleCatalog> {
   const auth = getGoogleAuth();
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = getReleaseSpreadsheetId();
@@ -115,7 +115,12 @@ async function getMotorcycleCatalog(): Promise<MotorcycleCatalog> {
     const row = rows[index];
     const unitCode = String(row[indexes.unitCode] ?? "").trim();
     const normalizedUnitCode = normalizeSheetValue(unitCode);
-    if (!normalizedUnitCode || releasedUnitCodes.has(normalizedUnitCode) || seenUnitCodes.has(normalizedUnitCode)) continue;
+    const isInJournal = releasedUnitCodes.has(normalizedUnitCode);
+    if (
+      !normalizedUnitCode ||
+      (source === "journal" ? !isInJournal : isInJournal) ||
+      seenUnitCodes.has(normalizedUnitCode)
+    ) continue;
     seenUnitCodes.add(normalizedUnitCode);
     motorcycles.push({
       sourceRow: index + 1,
@@ -418,9 +423,10 @@ export async function GET(request: NextRequest) {
   const auth = await requireAllowedUser(request);
   if (auth.error) return auth.error;
   const unitCode = request.nextUrl.searchParams.get("unitCode")?.trim();
+  const source = request.nextUrl.searchParams.get("source") === "journal" ? "journal" : "remaining";
 
   try {
-    if (!unitCode) return NextResponse.json(await getMotorcycleCatalog());
+    if (!unitCode) return NextResponse.json(await getMotorcycleCatalog(source));
     const motor = await findMotorcycle(unitCode);
     if (!motor) return jsonError("Motorcycle Unit Code is not in the remaining MC Stocks In inventory or is already recorded in MC Journal.", 404);
     return NextResponse.json({ motor });
