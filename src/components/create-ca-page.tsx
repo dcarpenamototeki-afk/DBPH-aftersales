@@ -171,7 +171,7 @@ export function CreateCaPage() {
                 <option value="">{loadingUnits ? "Loading MC Journal units..." : "Select unit model"}</option>
                 {journalUnits.map((unit) => (
                   <option key={unit.unitCode} value={unit.unitCode}>
-                    {[unit.unitModel, unit.unitCode, unit.engineNumber].filter(Boolean).join(" — ")}
+                    {[unit.unitModel, unit.engineNumber, unit.color].filter(Boolean).join(" — ")}
                   </option>
                 ))}
               </select>
