@@ -71,6 +71,10 @@ function flexibleHeaderIndex(headers: unknown[], aliases: string[]) {
   });
 }
 
+function normalizeUnitCode(value: unknown) {
+  return normalizeSheetValue(value).replace(/[^A-Z0-9]/g, "");
+}
+
 async function findMotorcycle(unitCode: string): Promise<MotorcycleMatch | null> {
   const catalog = await getMotorcycleCatalog();
   const target = normalizeSheetValue(unitCode);
@@ -85,7 +89,7 @@ async function getMotorcycleCatalog(source: "remaining" | "journal" = "remaining
     spreadsheetId,
     ranges: [
       `${escapeSheetName(mcReleaseConfig.stocksSheet)}!A:BZ`,
-      `${escapeSheetName(mcReleaseConfig.journalSheet)}!${mcReleaseConfig.journalLookupColumn}${mcReleaseConfig.firstJournalRow}:${mcReleaseConfig.journalLookupColumn}`
+      `${escapeSheetName(mcReleaseConfig.journalSheet)}!${mcReleaseConfig.journalLookupColumn}:${mcReleaseConfig.journalLookupColumn}`
     ]
   });
   const rows = response.data.valueRanges?.[0]?.values ?? [];
@@ -93,7 +97,7 @@ async function getMotorcycleCatalog(source: "remaining" | "journal" = "remaining
   const releasedUnitCodes = new Set(
     (response.data.valueRanges?.[1]?.values ?? [])
       .flat()
-      .map(normalizeSheetValue)
+      .map(normalizeUnitCode)
       .filter(Boolean)
   );
 
@@ -114,7 +118,7 @@ async function getMotorcycleCatalog(source: "remaining" | "journal" = "remaining
   for (let index = mcReleaseConfig.stocksFirstDataRow - 1; index < rows.length; index += 1) {
     const row = rows[index];
     const unitCode = String(row[indexes.unitCode] ?? "").trim();
-    const normalizedUnitCode = normalizeSheetValue(unitCode);
+    const normalizedUnitCode = normalizeUnitCode(unitCode);
     const isInJournal = releasedUnitCodes.has(normalizedUnitCode);
     if (
       !normalizedUnitCode ||
