@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Boxes, ChevronDown, ClipboardList, FileCheck2, FileImage, FileSignature, FileSpreadsheet, FileText, FolderDown, History, Import, PackageCheck, Radar, ReceiptText, RefreshCcw, Warehouse } from "lucide-react";
+import { BarChart3, Boxes, ChevronDown, ClipboardList, FileImage, FileSignature, FileSpreadsheet, FileText, FolderDown, History, Import, PackageCheck, Radar, ReceiptText, RefreshCcw, Warehouse } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { AuthGate } from "./auth-gate";
@@ -51,11 +51,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <NavLink href="/unidentified-plates" label="Unidentified Plates" icon={Radar} inset />
               <NavLink href="/too-status" label="ToO Status" icon={RefreshCcw} inset />
               <NavLink href="/sales-invoice-tracker" label="Sales Invoice Tracker" icon={ClipboardList} inset />
-              <NavLink href="/mc-release" label="BRISTOL MC Release" icon={FileCheck2} inset />
               <NavLink href="/create-ca" label="Create C.A" icon={FileSignature} inset />
               <NavLink href="/downpayment-file" label="Downpayment File" icon={ReceiptText} inset />
               <NavLink href="/catalog-card-maker" label="Catalog Card Maker" icon={FileImage} inset />
-              <NavLink href="/ltms-filler" label="LTMS Form Filler" icon={FileText} inset />
+              <NavLink href="/ltms-filler" label="LICENSE / LTMS FORM" icon={FileText} inset />
               <NavLink href="/important-documents" label="Important Documents" icon={FolderDown} inset />
             </div>
           </details>
