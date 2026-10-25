@@ -8,6 +8,7 @@ Internal Next.js app for encoding, searching, updating, importing, and exporting
 - Tailwind CSS
 - Supabase/PostgreSQL
 - Google Sheets import with CSV fallback
+- Vercel-ready deployment configuration
 
 ## Setup
 
@@ -25,6 +26,8 @@ npm install
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_ALLOWED_USER_UIDS=authorized-supabase-user-uuid
+ALLOWED_USER_UIDS=authorized-supabase-user-uuid
 ```
 
 4. Start the app:
@@ -32,6 +35,16 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```bash
 npm run dev
 ```
+
+## Public Catalog and Deployment
+
+The public storefront is served by the same Next.js project at `/home`, `/catalog`, and `/contact`. Admin Access uses Supabase Auth and then redirects authorized users to `/admin`; it does not require a ChatGPT account or a ChatGPT Site.
+
+1. Run `supabase/migrations/019_catalog_items.sql` in the target Supabase project after the existing migrations.
+2. Push this repository to GitHub.
+3. Import the GitHub repository into Vercel.
+4. In Vercel, copy the Supabase and allowed-user environment variables from `.env.example` into **Production**, **Preview**, and **Development** as appropriate. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only; never prefix it with `NEXT_PUBLIC_`.
+5. Deploy. Vercel uses the included Next.js build configuration automatically.
 
 ## Google Sheets Import
 

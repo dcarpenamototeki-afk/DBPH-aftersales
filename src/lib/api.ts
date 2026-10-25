@@ -48,7 +48,7 @@ export function normalizePayload(payload: unknown): unknown {
   );
 }
 
-async function writeActivityLog({
+export async function writeActivityLog({
   table,
   recordId,
   action,

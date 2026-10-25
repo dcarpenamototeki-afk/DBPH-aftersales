@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase";
@@ -12,10 +13,14 @@ const allowedUids = (
   .split(",")
   .map((uid) => uid.trim());
 
+const hasSupabaseConfig = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const supabase = getBrowserSupabaseClient();
+  const supabase = hasSupabaseConfig ? getBrowserSupabaseClient() : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,6 +28,7 @@ function LoginForm() {
 
   async function login(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!supabase) return;
     setLoading(true);
     setError("");
 
@@ -41,6 +47,19 @@ function LoginForm() {
     }
 
     router.replace(params.get("next") || "/");
+  }
+
+  if (!hasSupabaseConfig) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-ink bg-cover bg-center bg-no-repeat p-4" style={{ backgroundImage: "linear-gradient(rgba(8, 13, 22, 0.45), rgba(8, 13, 22, 0.78)), url('/dreambike-hero-clean.png')" }}>
+        <section className="w-full max-w-md border border-yellow-400/50 bg-slate-950/90 p-8 text-center text-white shadow-soft backdrop-blur">
+          <p className="text-xs font-bold tracking-[0.24em] text-yellow-300">DREAMBIKEPH</p>
+          <h1 className="mt-4 text-3xl font-black uppercase">Admin Access</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-300">This secure login is ready for the deployed Dreambike system. Local preview does not have its secured connection configured.</p>
+          <Link className="mt-6 inline-flex border border-yellow-400 px-4 py-2 text-xs font-bold uppercase tracking-wider text-yellow-300" href="/home">Back to homepage</Link>
+        </section>
+      </main>
+    );
   }
 
   return (
