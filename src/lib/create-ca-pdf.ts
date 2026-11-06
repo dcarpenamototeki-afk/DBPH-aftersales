@@ -152,7 +152,7 @@ function drawBristol(page: PDFPage, values: PlaceholderValues, fonts: PdfFonts) 
   cover(page, 34, 214, 530, 33);
   drawWrappedText(
     page,
-    `WHEREAS, the VENDEE has offered to buy and the VENDOR has agreed to sell \"3 MONTHS LIMITED WARRANTY\" of the unit and BOTH agreed for the price of: PHP ${phpValue(value(values, "{{AGREED_PRICE}}"))}`,
+    `WHEREAS, the VENDEE has offered to buy and the VENDOR has agreed to sell \"1 MONTH LIMITED WARRANTY\" of the unit and BOTH agreed for the price of: PHP ${phpValue(value(values, "{{AGREED_PRICE}}"))}`,
     { x: 36, top: 217, maxWidth: 524, size: 10.5, lineHeight: 13, font: fonts.bold }
   );
 
