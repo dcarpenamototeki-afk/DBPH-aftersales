@@ -10,9 +10,10 @@ export type DownpaymentForm = {
   engineNumber: string;
   chassisNumber: string;
   date: string;
+  remarks: string;
 };
 
-export type DownpaymentFieldKey = keyof DownpaymentForm | "signatureName";
+export type DownpaymentFieldKey = Exclude<keyof DownpaymentForm, "remarks"> | "signatureName";
 
 export type DownpaymentTextField = {
   x: number;
@@ -45,6 +46,17 @@ export const signatureDateField: DownpaymentTextField = {
   size: 9.5
 };
 
+export const remarksField = {
+  headingX: 64,
+  headingY: 105,
+  textX: 64,
+  textY: 88,
+  maxWidth: 467,
+  size: 9.5,
+  lineHeight: 12,
+  maxLines: 3
+};
+
 export const emptyDownpaymentForm: DownpaymentForm = {
   fullName: "",
   presentAddress: "",
@@ -56,5 +68,6 @@ export const emptyDownpaymentForm: DownpaymentForm = {
   brandSeriesColor: "",
   engineNumber: "",
   chassisNumber: "",
-  date: new Date().toISOString().slice(0, 10)
+  date: new Date().toISOString().slice(0, 10),
+  remarks: ""
 };

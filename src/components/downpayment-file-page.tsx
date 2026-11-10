@@ -9,6 +9,7 @@ import {
   downpaymentTemplatePath,
   downpaymentTextFields,
   emptyDownpaymentForm,
+  remarksField,
   signatureDateField
 } from "@/lib/downpayment-file-config";
 import { PageHeader } from "./page-header";
@@ -32,6 +33,37 @@ function formatAmount(value: string) {
 
 function safeFileName(value: string) {
   return value.trim().replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "CLIENT";
+}
+
+function wrapText(font: PDFFont, value: string, size: number, maxWidth: number, maxLines: number) {
+  const words = value.trim().replace(/\s+/g, " ").toUpperCase().split(" ").filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  while (words.length && lines.length < maxLines) {
+    const word = words.shift() ?? "";
+    const candidate = current ? `${current} ${word}` : word;
+
+    if (!current || font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+
+    lines.push(current);
+    current = word;
+  }
+
+  if (current && lines.length < maxLines) lines.push(current);
+
+  if (words.length && lines.length) {
+    let finalLine = `${lines[lines.length - 1]} ${words.join(" ")}`.trim();
+    while (finalLine && font.widthOfTextAtSize(`${finalLine}...`, size) > maxWidth) {
+      finalLine = finalLine.slice(0, -1).trimEnd();
+    }
+    lines[lines.length - 1] = `${finalLine}...`;
+  }
+
+  return lines;
 }
 
 export function DownpaymentFilePage() {
@@ -66,7 +98,7 @@ export function DownpaymentFilePage() {
   }
 
   async function generatePdf() {
-    const missing = Object.entries(form).find(([, value]) => !String(value).trim());
+    const missing = Object.entries(form).find(([key, value]) => key !== "remarks" && !String(value).trim());
     if (missing) {
       setMessage("Please complete all fields before generating the PDF.");
       return;
@@ -113,6 +145,24 @@ export function DownpaymentFilePage() {
         size: signatureDateSize,
         font,
         color: rgb(0.03, 0.03, 0.03)
+      });
+
+      page.drawText("F. REMARKS", {
+        x: remarksField.headingX,
+        y: remarksField.headingY,
+        size: 10.5,
+        font,
+        color: rgb(0.03, 0.03, 0.03)
+      });
+
+      wrapText(font, form.remarks, remarksField.size, remarksField.maxWidth, remarksField.maxLines).forEach((line, index) => {
+        page.drawText(line, {
+          x: remarksField.textX,
+          y: remarksField.textY - index * remarksField.lineHeight,
+          size: remarksField.size,
+          font,
+          color: rgb(0.03, 0.03, 0.03)
+        });
       });
 
       const bytes = await document.save();
@@ -165,6 +215,12 @@ export function DownpaymentFilePage() {
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Name<input disabled value={form.fullName} /></label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">Date<input type="date" value={form.date} onChange={(event) => updateValue("date", event.target.value)} /></label>
           </div>
+
+          <h3 className="mt-5 font-semibold text-ink">Remarks</h3>
+          <label className="mt-3 grid gap-1.5 text-sm font-medium text-slate-700">
+            Remarks
+            <textarea rows={3} placeholder="Optional remarks" value={form.remarks} onChange={(event) => updateValue("remarks", event.target.value)} />
+          </label>
 
           {message ? <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">{message}</p> : null}
           <button className="mt-4 inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={loading} onClick={generatePdf}>
